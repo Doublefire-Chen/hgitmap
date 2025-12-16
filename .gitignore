@@ -1,0 +1,89 @@
+# Claude Code
+CLAUDE.md
+
+# Rust (Backend)
+backend/target/
+backend/Cargo.lock
+backend/**/*.rs.bk
+backend/**/*.pdb
+
+# React/Vite (Frontend)
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+frontend/coverage/
+frontend/*.log
+frontend/.env.local
+frontend/.env.*.local
+
+# Dependencies
+**/node_modules/
+**/dist/
+**/build/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+secrets/
+config/secrets.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+pgdata/
+*.sql.gz
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+.vs/
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+*.temp
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+
+# Build artifacts
+*.wasm
+*.so
+*.dylib
+*.dll
+*.exe
