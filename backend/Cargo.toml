@@ -1,0 +1,47 @@
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web framework
+actix-web = "4.4"
+actix-cors = "0.7"
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Database
+sea-orm = { version = "1.1.19", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-chrono", "with-uuid"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Authentication & Security
+bcrypt = "0.15"
+jsonwebtoken = "9.2"
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1.6", features = ["serde", "v4"] }
+
+# Environment variables
+dotenv = "0.15"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# HTTP client for git platform APIs
+reqwest = { version = "0.11", features = ["json"] }
+
+# Image generation for heatmap
+image = "0.24"
+imageproc = "0.23"
