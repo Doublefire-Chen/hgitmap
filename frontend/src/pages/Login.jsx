@@ -33,7 +33,7 @@ const Login = () => {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
           <HeatmapLogo size={48} />
         </div>
-        <h1>Login to hgitmap</h1>
+        <h1>Login to Hgitmap</h1>
         <form onSubmit={handleSubmit}>
           {error && <div className="error-message">{error}</div>}
 
