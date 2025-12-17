@@ -18,17 +18,25 @@ CORNER_RADIUS = 0.26
 
 # Color palette (GitHub-style greens)
 COLORS = ["#006d32", "#26a641", "#39d353"]
-STROKE_COLOR = "#fff"  # White gaps between squares
 
-# File path
-SVG_FILE = "frontend/src/assets/heatmap.svg"
+# File paths with their stroke colors
+SVG_FILES = [
+    ("frontend/src/assets/heatmap-dark.svg", "#fff"),  # White gaps for dark theme
+    ("frontend/src/assets/heatmap-light.svg", "#000"),  # Black gaps for light theme
+]
 
 
-def generate_heatmap_pattern():
+def generate_heatmap_pattern(stroke_color):
     """Generate the complete heatmap pattern"""
     lines = []
     lines.append(
         f'    <pattern id="heatmap" x="0" y="0" width="{PATTERN_SIZE}" height="{PATTERN_SIZE}" patternUnits="userSpaceOnUse">')
+
+    # Add background rectangle for light theme to make gaps visible
+    if stroke_color == "#000":
+        lines.append(f'      <!-- Background for gaps -->')
+        lines.append(f'      <rect width="{PATTERN_SIZE}" height="{PATTERN_SIZE}" fill="#000" />')
+        lines.append("")
 
     for row in range(GRID_SIZE):
         lines.append(f"      <!-- Row {row + 1} -->")
@@ -40,7 +48,7 @@ def generate_heatmap_pattern():
 
             rect = (f'      <rect width="{RECT_SIZE}" height="{RECT_SIZE}" '
                     f'x="{x_pos}" y="{y_pos}" fill="{color}" '
-                    f'rx="{CORNER_RADIUS}" stroke="{STROKE_COLOR}" stroke-width="{STROKE_WIDTH}" />')
+                    f'rx="{CORNER_RADIUS}" stroke="{stroke_color}" stroke-width="{STROKE_WIDTH}" />')
             lines.append(rect)
 
         lines.append("")  # Empty line between rows
@@ -50,26 +58,29 @@ def generate_heatmap_pattern():
     return "\n".join(lines)
 
 
-def update_svg_file():
-    """Read SVG file, replace pattern section, and write back"""
-    # Read the existing SVG file
-    with open(SVG_FILE, 'r') as f:
-        svg_content = f.read()
+def update_svg_files():
+    """Read SVG files, replace pattern section, and write back"""
+    for svg_file, stroke_color in SVG_FILES:
+        # Read the existing SVG file
+        with open(svg_file, 'r') as f:
+            svg_content = f.read()
 
-    # Generate new pattern
-    new_pattern = generate_heatmap_pattern()
+        # Generate new pattern with appropriate stroke color
+        new_pattern = generate_heatmap_pattern(stroke_color)
 
-    # Replace the pattern section using regex
-    # Match from <pattern ... > to </pattern>
-    pattern_regex = r'<pattern id="heatmap"[^>]*>.*?</pattern>'
-    updated_svg = re.sub(pattern_regex, new_pattern,
-                         svg_content, flags=re.DOTALL)
+        # Replace the pattern section using regex
+        # Match from <pattern ... > to </pattern>
+        pattern_regex = r'<pattern id="heatmap"[^>]*>.*?</pattern>'
+        updated_svg = re.sub(pattern_regex, new_pattern,
+                             svg_content, flags=re.DOTALL)
 
-    # Write back to file
-    with open(SVG_FILE, 'w') as f:
-        f.write(updated_svg)
+        # Write back to file
+        with open(svg_file, 'w') as f:
+            f.write(updated_svg)
 
-    print(f"✓ Updated {SVG_FILE} with {GRID_SIZE}x{GRID_SIZE} heatmap pattern")
+        print(f"✓ Updated {svg_file} with {GRID_SIZE}x{GRID_SIZE} heatmap pattern")
+
+    print(f"\nConfiguration:")
     print(f"  - Pattern size: {PATTERN_SIZE}x{PATTERN_SIZE}")
     print(f"  - Rectangle size: {RECT_SIZE}")
     print(f"  - Spacing: {SPACING}")
@@ -77,4 +88,4 @@ def update_svg_file():
 
 
 if __name__ == "__main__":
-    update_svg_file()
+    update_svg_files()
