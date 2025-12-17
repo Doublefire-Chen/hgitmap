@@ -18,7 +18,7 @@ This repo help you integrate your contributions from different git host platform
 - Api to privide pre-rendered heatmap image for embedding in other places, such as README.md in GitHub
 - Customizable appearance of heatmap, like color scheme, size, etc.
 - Dark mode support
-- Profile page similar to GitHub profile page, but using contributions from multiple git platforms
+- Profile page similar to GitHub profile page, but using contributions from multiple git platforms, which include "Activity overview", "Contribution activity" as well.
 
 ## Deployment
 
