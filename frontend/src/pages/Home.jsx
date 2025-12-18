@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ThemeToggle from '../components/ThemeToggle';
 import './Home.css';
 
 const Home = () => {
@@ -18,6 +19,7 @@ const Home = () => {
           <h1>hgitmap</h1>
           <div className="user-info">
             <span>Welcome, {user?.username}!</span>
+            <ThemeToggle />
             <button onClick={handleLogout} className="logout-btn">
               Logout
             </button>

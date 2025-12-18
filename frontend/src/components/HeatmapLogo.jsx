@@ -1,13 +1,18 @@
-import heatmapLogoSvg from '../assets/heatmap-logo.svg';
+import { useTheme } from '../context/ThemeContext';
+import heatmapDarkSvg from '../assets/heatmap-dark.svg';
+import heatmapLightSvg from '../assets/heatmap-light.svg';
 
 const HeatmapLogo = ({ size = 48 }) => {
+  const { theme } = useTheme();
+  const logoSrc = theme === 'dark' ? heatmapDarkSvg : heatmapLightSvg;
+
   return (
     <img
-      src={heatmapLogoSvg}
+      src={logoSrc}
       alt="Heatmap Logo"
       width={size}
       height={size}
-      style={{ display: 'block', borderRadius: '50%', overflow: 'hidden' }}
+      style={{ display: 'block' }}
     />
   );
 };

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import HeatmapLogo from '../components/HeatmapLogo';
+import ThemeToggle from '../components/ThemeToggle';
 import './Auth.css';
 
 const Register = () => {
@@ -42,6 +43,9 @@ const Register = () => {
 
   return (
     <div className="auth-container">
+      <div className="theme-toggle-wrapper">
+        <ThemeToggle />
+      </div>
       <div className="auth-box">
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
           <HeatmapLogo size={48} />

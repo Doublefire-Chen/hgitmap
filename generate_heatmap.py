@@ -22,7 +22,8 @@ COLORS = ["#006d32", "#26a641", "#39d353"]
 # File paths with their stroke colors
 SVG_FILES = [
     ("frontend/src/assets/heatmap-dark.svg", "#fff"),  # White gaps for dark theme
-    ("frontend/src/assets/heatmap-light.svg", "#000"),  # Black gaps for light theme
+    # Black gaps for light theme
+    ("frontend/src/assets/heatmap-light.svg", "#000"),
 ]
 
 
@@ -32,11 +33,11 @@ def generate_heatmap_pattern(stroke_color):
     lines.append(
         f'    <pattern id="heatmap" x="0" y="0" width="{PATTERN_SIZE}" height="{PATTERN_SIZE}" patternUnits="userSpaceOnUse">')
 
-    # Add background rectangle for light theme to make gaps visible
-    if stroke_color == "#000":
-        lines.append(f'      <!-- Background for gaps -->')
-        lines.append(f'      <rect width="{PATTERN_SIZE}" height="{PATTERN_SIZE}" fill="#000" />')
-        lines.append("")
+    # Add background rectangle to make gaps visible (matches stroke color)
+    lines.append(f'      <!-- Background for gaps -->')
+    lines.append(
+        f'      <rect width="{PATTERN_SIZE}" height="{PATTERN_SIZE}" fill="{stroke_color}" />')
+    lines.append("")
 
     for row in range(GRID_SIZE):
         lines.append(f"      <!-- Row {row + 1} -->")
@@ -78,7 +79,8 @@ def update_svg_files():
         with open(svg_file, 'w') as f:
             f.write(updated_svg)
 
-        print(f"✓ Updated {svg_file} with {GRID_SIZE}x{GRID_SIZE} heatmap pattern")
+        print(
+            f"✓ Updated {svg_file} with {GRID_SIZE}x{GRID_SIZE} heatmap pattern")
 
     print(f"\nConfiguration:")
     print(f"  - Pattern size: {PATTERN_SIZE}x{PATTERN_SIZE}")

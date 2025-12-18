@@ -1,3 +1,39 @@
+:root {
+  /* Light theme colors (default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-header: #24292f;
+  --text-primary: #1f2328;
+  --text-secondary: #59636e;
+  --text-on-dark: #ffffff;
+  --border-primary: #d1d9e0;
+  --border-secondary: #d0d7de;
+  --button-primary: #1f883d;
+  --button-primary-hover: #1c8139;
+  --button-primary-active: #197935;
+  --link-primary: #0969da;
+  --error-bg: #ffebe9;
+  --error-text: #d1242f;
+}
+
+[data-theme='dark'] {
+  /* Dark theme colors */
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-header: #010409;
+  --text-primary: #e6edf3;
+  --text-secondary: #7d8590;
+  --text-on-dark: #ffffff;
+  --border-primary: #30363d;
+  --border-secondary: #21262d;
+  --button-primary: #238636;
+  --button-primary-hover: #2ea043;
+  --button-primary-active: #26a641;
+  --link-primary: #2f81f7;
+  --error-bg: #39121880;
+  --error-text: #f85149;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -10,8 +46,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
   font-size: 14px;
   line-height: 1.5;
-  color: #1f2328;
+  color: var(--text-primary);
   font-weight: 400;
+  background-color: var(--bg-secondary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 #root {

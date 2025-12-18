@@ -1,11 +1,11 @@
 .home-container {
   min-height: 100vh;
-  background-color: #f6f8fa;
+  background-color: var(--bg-secondary);
 }
 
 .home-header {
-  background: #24292f;
-  border-bottom: 1px solid #d1d9e0;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-primary);
   padding: 16px 0;
 }
 
@@ -21,7 +21,7 @@
 .home-header h1 {
   margin: 0;
   font-size: 32px;
-  color: #ffffff;
+  color: var(--text-on-dark);
   font-weight: 600;
 }
 
@@ -32,7 +32,7 @@
 }
 
 .user-info span {
-  color: #ffffff;
+  color: var(--text-on-dark);
   font-weight: 500;
   font-size: 14px;
 }
@@ -40,7 +40,7 @@
 .logout-btn {
   padding: 5px 16px;
   background-color: transparent;
-  color: #ffffff;
+  color: var(--text-on-dark);
   border: 1px solid rgba(240, 246, 252, 0.1);
   border-radius: 6px;
   font-size: 14px;
@@ -51,7 +51,7 @@
 }
 
 .logout-btn:hover {
-  background-color: #30363d;
+  background-color: var(--border-primary);
   border-color: rgba(240, 246, 252, 0.2);
 }
 
@@ -62,22 +62,22 @@
 }
 
 .welcome-section {
-  background: #ffffff;
+  background: var(--bg-primary);
   padding: 32px;
-  border: 1px solid #d1d9e0;
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   box-shadow: none;
 }
 
 .welcome-section h2 {
   margin: 0 0 8px 0;
-  color: #1f2328;
+  color: var(--text-primary);
   font-size: 20px;
   font-weight: 600;
 }
 
 .welcome-section p {
-  color: #59636e;
+  color: var(--text-secondary);
   margin: 0 0 24px 0;
   font-size: 14px;
   font-weight: 400;
@@ -85,15 +85,15 @@
 
 .placeholder-section {
   padding: 64px 32px;
-  background: #f6f8fa;
+  background: var(--bg-secondary);
   border-radius: 6px;
   text-align: center;
-  border: 1px dashed #d1d9e0;
+  border: 1px dashed var(--border-primary);
 }
 
 .placeholder-text {
   font-size: 16px;
-  color: #59636e;
+  color: var(--text-secondary);
   margin: 0;
   font-weight: 400;
 }

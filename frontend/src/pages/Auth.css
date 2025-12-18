@@ -3,8 +3,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f6f8fa;
+  background-color: var(--bg-secondary);
   padding: 20px;
+  position: relative;
+}
+
+.theme-toggle-wrapper {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+.theme-toggle-wrapper .theme-toggle {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.theme-toggle-wrapper .theme-toggle:hover {
+  background-color: var(--bg-secondary);
 }
 
 .auth-box {
@@ -20,7 +38,7 @@
 .auth-box h1 {
   margin: 0 0 32px 0;
   font-size: 24px;
-  color: #1f2328;
+  color: var(--text-primary);
   text-align: center;
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -33,7 +51,7 @@
 .form-group label {
   display: block;
   margin-bottom: 4px;
-  color: #1f2328;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 14px;
   line-height: 21px;
@@ -43,12 +61,12 @@
 .form-group input {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid #d1d9e0;
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   font-size: 14px;
   line-height: 20px;
-  color: #1f2328;
-  background-color: #ffffff;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
   transition: border-color 0.2s ease;
   box-sizing: border-box;
   height: 40px;
@@ -57,21 +75,21 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: #0969da;
+  border-color: var(--link-primary);
   box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.12);
 }
 
 .form-group input:disabled {
-  background-color: #f6f8fa;
-  color: #59636e;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
   cursor: not-allowed;
 }
 
 button[type="submit"] {
   width: 100%;
   padding: 12px 16px;
-  background-color: #1f883d;
-  color: #ffffff;
+  background-color: var(--button-primary);
+  color: var(--text-on-dark);
   border: 1px solid rgba(31, 35, 40, 0.15);
   border-radius: 6px;
   font-size: 14px;
@@ -83,11 +101,11 @@ button[type="submit"] {
 }
 
 button[type="submit"]:hover:not(:disabled) {
-  background-color: #1c8139;
+  background-color: var(--button-primary-hover);
 }
 
 button[type="submit"]:active:not(:disabled) {
-  background-color: #197935;
+  background-color: var(--button-primary-active);
 }
 
 button[type="submit"]:disabled {
@@ -96,8 +114,8 @@ button[type="submit"]:disabled {
 }
 
 .error-message {
-  background-color: #ffebe9;
-  color: #d1242f;
+  background-color: var(--error-bg);
+  color: var(--error-text);
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 16px;
@@ -108,15 +126,15 @@ button[type="submit"]:disabled {
 .auth-footer {
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid #d1d9e0;
+  border-top: 1px solid var(--border-primary);
   text-align: center;
-  color: #59636e;
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 400;
 }
 
 .auth-footer a {
-  color: #0969da;
+  color: var(--link-primary);
   text-decoration: none;
   font-weight: 400;
 }
