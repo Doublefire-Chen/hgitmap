@@ -8,8 +8,9 @@ edition = "2021"
 actix-web = "4.4"
 actix-cors = "0.7"
 
-# Async runtime
+# Async runtime and utilities
 tokio = { version = "1.35", features = ["full"] }
+futures-util = "0.3"
 
 # Database
 sea-orm = { version = "1.1.19", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-chrono", "with-uuid"] }
@@ -41,6 +42,17 @@ log = "0.4"
 
 # HTTP client for git platform APIs
 reqwest = { version = "0.11", features = ["json"] }
+
+# Encryption for token storage
+aes-gcm = "0.10"
+base64 = "0.21"
+
+# URL parsing and validation
+url = "2.5"
+urlencoding = "2.1"
+
+# Async trait support
+async-trait = "0.1"
 
 # Image generation for heatmap
 image = "0.24"

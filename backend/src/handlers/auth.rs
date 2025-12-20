@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
 use chrono::Utc;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, ColumnTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, ColumnTrait, QueryFilter, PaginatorTrait};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -26,6 +26,7 @@ pub struct AuthResponse {
     pub token: String,
     pub user_id: String,
     pub username: String,
+    pub is_admin: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -81,6 +82,18 @@ pub async fn register(
         }
     };
 
+    // Check if this is the first user (make them admin)
+    let user_count = user::Entity::find()
+        .count(db.get_ref())
+        .await
+        .unwrap_or(0);
+
+    let is_first_user = user_count == 0;
+
+    if is_first_user {
+        log::info!("👑 First user - granting admin privileges");
+    }
+
     // Create user
     log::info!("💾 Creating user '{}'...", req.username);
     let user_id = Uuid::new_v4();
@@ -89,6 +102,7 @@ pub async fn register(
         username: Set(req.username.clone()),
         password_hash: Set(password_hash),
         email: Set(req.email.clone()),
+        is_admin: Set(is_first_user),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
     };
@@ -135,6 +149,7 @@ pub async fn register(
                 token,
                 user_id: user.id.to_string(),
                 username: user.username,
+                is_admin: user.is_admin,
             })
         }
         Err(e) => {
@@ -185,6 +200,7 @@ pub async fn login(
                         token,
                         user_id: user.id.to_string(),
                         username: user.username,
+                        is_admin: user.is_admin,
                     })
                 }
                 Ok(false) => {

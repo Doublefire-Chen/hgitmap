@@ -10,6 +10,7 @@ CREATE TABLE users (
     username VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     email VARCHAR(255),
+    is_admin BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -75,6 +76,38 @@ CREATE TABLE api_tokens (
 
 CREATE INDEX idx_api_tokens_token ON api_tokens(token);
 
+-- OAuth applications table (for web-based OAuth configuration)
+CREATE TABLE oauth_applications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    platform git_platform NOT NULL,
+    instance_url VARCHAR(512) NOT NULL DEFAULT '',
+    instance_name VARCHAR(255) NOT NULL,
+    client_id VARCHAR(512) NOT NULL,
+    client_secret TEXT NOT NULL, -- Encrypted with AES-256-GCM
+    is_enabled BOOLEAN DEFAULT true,
+    is_default BOOLEAN DEFAULT false,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(platform, instance_url)
+);
+
+-- Index for OAuth app lookups
+CREATE INDEX idx_oauth_apps_platform ON oauth_applications(platform, instance_url, is_enabled);
+
+-- OAuth state table for secure callback handling
+CREATE TABLE oauth_states (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    state_token VARCHAR(255) UNIQUE NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    platform git_platform NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE INDEX idx_oauth_states_token ON oauth_states(state_token);
+CREATE INDEX idx_oauth_states_expires ON oauth_states(expires_at);
+
 -- Trigger function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -95,4 +128,7 @@ CREATE TRIGGER update_contributions_updated_at BEFORE UPDATE ON contributions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON user_settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_oauth_applications_updated_at BEFORE UPDATE ON oauth_applications
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -1,37 +1,105 @@
 :root {
-  /* Light theme colors (default) */
+  /* Light theme colors - Updated to match GitHub 2024 */
   --bg-primary: #ffffff;
   --bg-secondary: #f6f8fa;
-  --bg-header: #24292f;
+  --bg-tertiary: #eaeef2;
+  --bg-header: #ffffff;
+  --bg-inset: #f6f8fa;
+
   --text-primary: #1f2328;
-  --text-secondary: #59636e;
+  --text-secondary: #656d76;
+  --text-tertiary: #818b98;
   --text-on-dark: #ffffff;
-  --border-primary: #d1d9e0;
-  --border-secondary: #d0d7de;
-  --button-primary: #1f883d;
-  --button-primary-hover: #1c8139;
-  --button-primary-active: #197935;
-  --link-primary: #0969da;
-  --error-bg: #ffebe9;
-  --error-text: #d1242f;
+  --text-link: #0969da;
+
+  --border-color: #d0d7de;
+  --border-muted: #d0d7deb3;
+  --border-emphasis: #818b98;
+
+  --accent-primary: #0969da;
+  --accent-hover: #0550ae;
+  --accent-emphasis: #0550ae;
+  --accent-muted: #ddf4ff;
+  --accent-subtle: #54aeff66;
+
+  --success-fg: #1a7f37;
+  --success-emphasis: #2da44e;
+  --success-muted: #dafbe1;
+
+  --danger-fg: #d1242f;
+  --danger-emphasis: #cf222e;
+  --danger-muted: #ffebe9;
+
+  --attention-fg: #9a6700;
+  --attention-emphasis: #bf8700;
+  --attention-muted: #fff8c5;
+
+  /* Button styles */
+  --button-primary-bg: #1f883d;
+  --button-primary-hover-bg: #1a7f37;
+  --button-primary-active-bg: #18762f;
+  --button-primary-text: #ffffff;
+
+  /* Additional UI variables */
+  --shadow-sm: 0 1px 0 rgba(31, 35, 40, 0.04);
+  --shadow-md: 0 3px 6px rgba(140, 149, 159, 0.15);
+  --shadow-lg: 0 8px 24px rgba(140, 149, 159, 0.2);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 [data-theme='dark'] {
-  /* Dark theme colors */
+  /* Dark theme colors - Updated to match GitHub 2024 */
   --bg-primary: #0d1117;
   --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
   --bg-header: #010409;
+  --bg-inset: #010409;
+
   --text-primary: #e6edf3;
   --text-secondary: #7d8590;
+  --text-tertiary: #656c76;
   --text-on-dark: #ffffff;
-  --border-primary: #30363d;
-  --border-secondary: #21262d;
-  --button-primary: #238636;
-  --button-primary-hover: #2ea043;
-  --button-primary-active: #26a641;
-  --link-primary: #2f81f7;
-  --error-bg: #39121880;
-  --error-text: #f85149;
+  --text-link: #4493f8;
+
+  --border-color: #30363d;
+  --border-muted: #30363db3;
+  --border-emphasis: #6e7681;
+
+  --accent-primary: #4493f8;
+  --accent-hover: #539bf5;
+  --accent-emphasis: #0969da;
+  --accent-muted: #1f6feb4d;
+  --accent-subtle: #1f6feb26;
+
+  --success-fg: #3fb950;
+  --success-emphasis: #2ea043;
+  --success-muted: #2ea04326;
+
+  --danger-fg: #f85149;
+  --danger-emphasis: #da3633;
+  --danger-muted: #da363326;
+
+  --attention-fg: #d29922;
+  --attention-emphasis: #bf8700;
+  --attention-muted: #bf870026;
+
+  /* Button styles */
+  --button-primary-bg: #238636;
+  --button-primary-hover-bg: #2ea043;
+  --button-primary-active-bg: #26a641;
+  --button-primary-text: #ffffff;
+
+  /* Additional UI variables */
+  --shadow-sm: 0 0 transparent;
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 * {

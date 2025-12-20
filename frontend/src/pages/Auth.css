@@ -17,7 +17,7 @@
 
 .theme-toggle-wrapper .theme-toggle {
   background-color: var(--bg-primary);
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--border-color);
   color: var(--text-primary);
 }
 
@@ -61,8 +61,8 @@
 .form-group input {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   font-size: 14px;
   line-height: 20px;
   color: var(--text-primary);
@@ -75,8 +75,8 @@
 
 .form-group input:focus {
   outline: none;
-  border-color: var(--link-primary);
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.12);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
 .form-group input:disabled {
@@ -88,10 +88,10 @@
 button[type="submit"] {
   width: 100%;
   padding: 12px 16px;
-  background-color: var(--button-primary);
-  color: var(--text-on-dark);
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
   border: 1px solid rgba(31, 35, 40, 0.15);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -101,11 +101,11 @@ button[type="submit"] {
 }
 
 button[type="submit"]:hover:not(:disabled) {
-  background-color: var(--button-primary-hover);
+  background-color: var(--button-primary-hover-bg);
 }
 
 button[type="submit"]:active:not(:disabled) {
-  background-color: var(--button-primary-active);
+  background-color: var(--button-primary-active-bg);
 }
 
 button[type="submit"]:disabled {
@@ -114,19 +114,19 @@ button[type="submit"]:disabled {
 }
 
 .error-message {
-  background-color: var(--error-bg);
-  color: var(--error-text);
+  background-color: var(--danger-muted);
+  color: var(--danger-fg);
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   margin-bottom: 16px;
   font-size: 14px;
-  border: 1px solid rgba(255, 129, 130, 0.4);
+  border: 1px solid var(--danger-emphasis);
 }
 
 .auth-footer {
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid var(--border-primary);
+  border-top: 1px solid var(--border-color);
   text-align: center;
   color: var(--text-secondary);
   font-size: 14px;
@@ -134,7 +134,7 @@ button[type="submit"]:disabled {
 }
 
 .auth-footer a {
-  color: var(--link-primary);
+  color: var(--text-link);
   text-decoration: none;
   font-weight: 400;
 }

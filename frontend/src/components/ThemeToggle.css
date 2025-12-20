@@ -3,10 +3,10 @@
   align-items: center;
   justify-content: center;
   padding: 8px;
-  background-color: transparent;
-  color: var(--text-on-dark);
-  border: 1px solid rgba(240, 246, 252, 0.1);
-  border-radius: 6px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   width: 32px;
@@ -14,8 +14,8 @@
 }
 
 .theme-toggle:hover {
-  background-color: var(--border-primary);
-  border-color: rgba(240, 246, 252, 0.2);
+  background-color: var(--bg-secondary);
+  border-color: var(--border-emphasis);
 }
 
 .theme-toggle svg {

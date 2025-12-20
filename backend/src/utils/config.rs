@@ -9,6 +9,8 @@ pub struct Config {
     pub jwt_secret: String,
     pub jwt_expiration_hours: i64,
     pub allow_registration: bool,
+    pub base_url: String,
+    pub encryption_key: String,
 }
 
 impl Config {
@@ -31,6 +33,8 @@ impl Config {
                 .unwrap_or_else(|_| "true".to_string())
                 .parse()
                 .expect("ALLOW_REGISTRATION must be true or false"),
+            base_url: env::var("BASE_URL")?,
+            encryption_key: env::var("ENCRYPTION_KEY")?,
         })
     }
 }

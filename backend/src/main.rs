@@ -10,8 +10,8 @@ use utils::{config::Config, db::establish_connection};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize logger
-    env_logger::init();
+    // Initialize logger with default level if RUST_LOG not set
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
 
     println!("=================================================");
     println!("🚀 hgitmap Backend Server");
@@ -41,8 +41,14 @@ async fn main() -> std::io::Result<()> {
     // Start HTTP server
     println!("🌐 Starting HTTP server at http://{}:{}", host, port);
     println!("📍 Available endpoints:");
-    println!("   - POST http://{}:{}/api/auth/register", host, port);
-    println!("   - POST http://{}:{}/api/auth/login", host, port);
+    println!("   - POST http://{}:{}/auth/register", host, port);
+    println!("   - POST http://{}:{}/auth/login", host, port);
+    println!("   - GET  http://{}:{}/oauth/github/authorize", host, port);
+    println!("   - GET  http://{}:{}/oauth/github/callback", host, port);
+    println!("   - POST http://{}:{}/platforms/connect (JWT required)", host, port);
+    println!("   - GET  http://{}:{}/platforms (JWT required)", host, port);
+    println!("   - GET  http://{}:{}/contributions (JWT required)", host, port);
+    println!("   - GET  http://{}:{}/settings (JWT required)", host, port);
     println!("=================================================");
 
     log::info!("Server started at http://{}:{}", host, port);
@@ -59,13 +65,52 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(config.clone()))
             .wrap(cors)
             .wrap(Logger::default())
+            // Public endpoints (no authentication required)
             .service(
-                web::scope("/api")
-                    .service(
-                        web::scope("/auth")
-                            .route("/register", web::post().to(handlers::auth::register))
-                            .route("/login", web::post().to(handlers::auth::login))
+                web::scope("/auth")
+                    .route("/register", web::post().to(handlers::auth::register))
+                    .route("/login", web::post().to(handlers::auth::login))
+            )
+            // OAuth endpoints (authorize requires JWT, callback uses state token)
+            .service(
+                web::scope("/oauth")
+                    .route(
+                        "/github/authorize",
+                        web::get()
+                            .to(handlers::oauth::github_authorize)
+                            .wrap(crate::middleware::auth::JwtMiddleware)
                     )
+                    .route("/github/callback", web::get().to(handlers::oauth::github_callback))
+            )
+            // Protected endpoints (JWT required)
+            .service(
+                web::scope("/platforms")
+                    .wrap(crate::middleware::auth::JwtMiddleware)
+                    .route("/connect", web::post().to(handlers::platform_accounts::connect_platform))
+                    .route("", web::get().to(handlers::platform_accounts::list_platforms))
+                    .route("/{id}", web::delete().to(handlers::platform_accounts::disconnect_platform))
+                    .route("/{id}/sync", web::post().to(handlers::platform_accounts::sync_platform))
+            )
+            .service(
+                web::scope("/contributions")
+                    .wrap(crate::middleware::auth::JwtMiddleware)
+                    .route("", web::get().to(handlers::contributions::get_contributions))
+                    .route("/stats", web::get().to(handlers::contributions::get_stats))
+            )
+            .service(
+                web::scope("/settings")
+                    .wrap(crate::middleware::auth::JwtMiddleware)
+                    .route("", web::get().to(handlers::settings::get_settings))
+                    .route("", web::put().to(handlers::settings::update_settings))
+            )
+            // Admin endpoints (JWT + admin check required)
+            .service(
+                web::scope("/admin/oauth-apps")
+                    .wrap(crate::middleware::auth::JwtMiddleware)
+                    .route("", web::get().to(handlers::oauth_apps::list_oauth_apps))
+                    .route("", web::post().to(handlers::oauth_apps::create_oauth_app))
+                    .route("/{id}", web::put().to(handlers::oauth_apps::update_oauth_app))
+                    .route("/{id}", web::delete().to(handlers::oauth_apps::delete_oauth_app))
             )
     })
     .bind((host, port))?

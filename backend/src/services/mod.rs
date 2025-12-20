@@ -1,2 +1,1 @@
-// Services module for business logic
-// Git platform integrations will be added here
+pub mod git_platforms;

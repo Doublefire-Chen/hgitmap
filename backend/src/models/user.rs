@@ -10,6 +10,7 @@ pub struct Model {
     pub username: String,
     pub password_hash: String,
     pub email: Option<String>,
+    pub is_admin: bool,
     pub created_at: ChronoDateTimeUtc,
     pub updated_at: ChronoDateTimeUtc,
 }

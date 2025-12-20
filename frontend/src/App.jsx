@@ -5,6 +5,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
+import OAuthCallback from './pages/OAuthCallback';
+import Settings from './pages/Settings';
+import AdminOAuthApps from './pages/AdminOAuthApps';
 
 function App() {
   return (
@@ -19,6 +22,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Home />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/oauth-apps"
+              element={
+                <ProtectedRoute>
+                  <AdminOAuthApps />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/oauth/callback"
+              element={
+                <ProtectedRoute>
+                  <OAuthCallback />
                 </ProtectedRoute>
               }
             />

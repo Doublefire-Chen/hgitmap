@@ -7,7 +7,6 @@ import './Auth.css';
 
 const Register = () => {
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,7 +31,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register(username, password, email || undefined);
+      await register(username, password);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -62,17 +61,6 @@ const Register = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              disabled={loading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email (optional)</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
             />
           </div>
