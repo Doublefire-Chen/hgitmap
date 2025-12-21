@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use url::Url;
 
 /// Validate that a string is a valid URL with http or https scheme
+#[allow(dead_code)]
 pub fn validate_url(url_str: &str) -> Result<Url> {
     let url = Url::parse(url_str)
         .map_err(|e| anyhow!("Invalid URL format: {}", e))?;
@@ -24,6 +25,7 @@ pub fn validate_url(url_str: &str) -> Result<Url> {
 
 /// Validate that a URL is a valid instance URL for self-hosted platforms
 /// Returns the normalized base URL (no trailing slash, no path)
+#[allow(dead_code)]
 pub fn validate_instance_url(url_str: &str) -> Result<String> {
     let url = validate_url(url_str)?;
 
@@ -41,6 +43,7 @@ pub fn validate_instance_url(url_str: &str) -> Result<String> {
 }
 
 /// Validate username (alphanumeric, hyphens, underscores, 1-39 chars for GitHub compatibility)
+#[allow(dead_code)]
 pub fn validate_username(username: &str) -> Result<()> {
     if username.is_empty() || username.len() > 39 {
         return Err(anyhow!(

@@ -815,6 +815,12 @@ struct GitHubContributionsByRepoResponse {
 }
 
 #[derive(Debug, Deserialize)]
+struct GitHubGraphQLError {
+    #[allow(dead_code)]
+    message: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct GitHubContributionsByRepoData {
     user: Option<GitHubContributionsByRepoUserData>,
 }
@@ -857,54 +863,6 @@ struct GitHubContributionNode {
     commit_count: i32,
 }
 
-// Old response types (kept for reference, can be removed later)
-#[derive(Debug, Deserialize)]
-struct GitHubGraphQLResponse {
-    data: Option<GitHubData>,
-    errors: Option<Vec<GitHubGraphQLError>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubGraphQLError {
-    message: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubData {
-    user: Option<GitHubUserData>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GitHubUserData {
-    contributions_collection: GitHubContributionsCollection,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GitHubContributionsCollection {
-    contribution_calendar: GitHubContributionCalendar,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GitHubContributionCalendar {
-    total_contributions: i32,
-    weeks: Vec<GitHubContributionWeek>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GitHubContributionWeek {
-    contribution_days: Vec<GitHubContributionDay>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GitHubContributionDay {
-    date: String,
-    contribution_count: i32,
-}
 
 #[derive(Debug, Deserialize)]
 struct GitHubUser {
@@ -915,6 +873,7 @@ struct GitHubUser {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct GitHubRepo {
     name: String,
     full_name: String,
@@ -943,30 +902,4 @@ struct GitHubEventRepo {
 struct GitHubEventOrg {
     login: String,
     avatar_url: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct GitHubEventPayload {
-    ref_type: Option<String>,
-    description: Option<String>,
-    size: Option<i32>,
-    commits: Option<Vec<serde_json::Value>>, // Array of commit objects
-    pull_request: Option<GitHubPullRequest>,
-    issue: Option<GitHubIssue>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct GitHubPullRequest {
-    title: String,
-    number: i32,
-    state: String,
-    html_url: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct GitHubIssue {
-    title: String,
-    number: i32,
-    state: String,
-    html_url: String,
 }

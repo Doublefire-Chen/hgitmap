@@ -380,6 +380,7 @@ async fn exchange_github_code(code: &str, client_id: &str, client_secret: &str) 
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct GitHubTokenResponse {
     access_token: String,
     token_type: Option<String>,

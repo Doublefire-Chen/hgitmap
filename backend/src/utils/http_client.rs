@@ -12,6 +12,7 @@ pub fn create_http_client() -> Client {
 
 /// Create an HTTP client that accepts self-signed certificates (development only)
 #[cfg(debug_assertions)]
+#[allow(dead_code)]
 pub fn create_http_client_allow_self_signed() -> Client {
     ClientBuilder::new()
         .timeout(Duration::from_secs(30))

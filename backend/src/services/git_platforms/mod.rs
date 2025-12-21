@@ -68,6 +68,7 @@ pub struct UserInfo {
 
 /// Repository information from platform APIs
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct Repository {
     pub name: String,
     pub full_name: String,
@@ -77,6 +78,7 @@ pub struct Repository {
 
 /// Configuration for a specific platform instance
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct PlatformConfig {
     pub platform: String,
     pub instance_url: String,
@@ -138,6 +140,7 @@ pub trait GitPlatform: Send + Sync {
     async fn validate_token(&self, config: &PlatformConfig, token: &str) -> Result<UserInfo>;
 
     /// Fetch repositories accessible with the given token
+    #[allow(dead_code)]
     async fn fetch_repositories(
         &self,
         config: &PlatformConfig,
