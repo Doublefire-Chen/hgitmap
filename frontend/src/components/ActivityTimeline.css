@@ -1,0 +1,385 @@
+/* Activity Timeline Styles */
+.activity-timeline {
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 32px;
+  border-top: 1px solid var(--border-color);
+}
+
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.sync-button {
+  padding: 0.375rem 0.75rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sync-button:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--border-dark);
+}
+
+.sync-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.month-group {
+  margin-bottom: 2rem;
+}
+
+.month-header {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.activity-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0;
+  border-radius: 0;
+  transition: background-color 0.2s;
+}
+
+.activity-item:hover {
+  background-color: transparent;
+}
+
+.activity-icon {
+  font-size: 1.125rem;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.125rem;
+}
+
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-header {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  line-height: 1.5;
+}
+
+.activity-header a {
+  color: var(--link-color);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.activity-header a:hover {
+  text-decoration: underline;
+}
+
+.activity-details {
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.repository-item {
+  padding: 0.375rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.repository-item a {
+  color: var(--link-color);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.repository-item a:hover {
+  text-decoration: underline;
+}
+
+.commit-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.commit-bar {
+  width: 80px;
+  height: 6px;
+  background-color: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.commit-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.language-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-left: 0.5rem;
+}
+
+.language-tag::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--language-color, #858585);
+}
+
+/* GitHub language colors */
+.language-tag[data-language="Python"]::before {
+  background-color: #3572A5;
+}
+
+.language-tag[data-language="JavaScript"]::before {
+  background-color: #f1e05a;
+}
+
+.language-tag[data-language="TypeScript"]::before {
+  background-color: #2b7489;
+}
+
+.language-tag[data-language="Java"]::before {
+  background-color: #b07219;
+}
+
+.language-tag[data-language="Go"]::before {
+  background-color: #00ADD8;
+}
+
+.language-tag[data-language="Rust"]::before {
+  background-color: #dea584;
+}
+
+.language-tag[data-language="C++"]::before,
+.language-tag[data-language="C"]::before {
+  background-color: #f34b7d;
+}
+
+.language-tag[data-language="Ruby"]::before {
+  background-color: #701516;
+}
+
+.language-tag[data-language="PHP"]::before {
+  background-color: #4F5D95;
+}
+
+.language-tag[data-language="Swift"]::before {
+  background-color: #ffac45;
+}
+
+.language-tag[data-language="Kotlin"]::before {
+  background-color: #F18E33;
+}
+
+.language-tag[data-language="HTML"]::before {
+  background-color: #e34c26;
+}
+
+.language-tag[data-language="CSS"]::before {
+  background-color: #563d7c;
+}
+
+.language-tag[data-language="Shell"]::before,
+.language-tag[data-language="Bash"]::before {
+  background-color: #89e051;
+}
+
+.activity-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0 1rem;
+}
+
+.load-more-button {
+  padding: 0.5rem 1rem;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-more-button:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  border-color: var(--border-dark);
+}
+
+.load-more-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading-message,
+.empty-message {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.empty-message p {
+  margin: 0.5rem 0;
+}
+
+.empty-message p:first-child {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.error-message {
+  text-align: center;
+  padding: 1rem;
+  color: var(--error-color);
+  background-color: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-radius: 6px;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+}
+
+/* CSS Variables (ensure these are defined in your global styles) */
+:root {
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --bg-hover: #f6f8fa;
+  --bg-secondary: #f6f8fa;
+  --border-color: #d0d7de;
+  --border-light: #e1e4e8;
+  --border-dark: #bbb;
+  --link-color: #0969da;
+  --primary-color: #2da44e;
+  --error-color: #d1242f;
+  --error-bg: #fff0f0;
+  --error-border: #ffdddd;
+}
+
+[data-theme="dark"] {
+  --text-primary: #e6edf3;
+  --text-secondary: #7d8590;
+  --bg-hover: #161b22;
+  --bg-secondary: #161b22;
+  --border-color: #30363d;
+  --border-light: #21262d;
+  --border-dark: #444c56;
+  --link-color: #58a6ff;
+  --primary-color: #3fb950;
+  --error-color: #f85149;
+  --error-bg: #2d1619;
+  --error-border: #6e1619;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .activity-timeline {
+    padding: 1rem;
+  }
+
+  .timeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .sync-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .timeline-title {
+    font-size: 0.875rem;
+  }
+
+  .month-header {
+    font-size: 0.8125rem;
+  }
+
+  .activity-item {
+    gap: 0.5rem;
+  }
+
+  .activity-icon {
+    font-size: 1rem;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .activity-header {
+    font-size: 0.8125rem;
+  }
+
+  .repository-item {
+    flex-wrap: wrap;
+  }
+
+  .commit-count {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0.25rem;
+  }
+
+  .commit-bar {
+    order: 4;
+    width: 100%;
+  }
+}

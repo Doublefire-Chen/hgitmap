@@ -12,6 +12,8 @@ function PlatformConnector() {
   const [patLoading, setPatLoading] = useState(false);
   const [syncingPlatformId, setSyncingPlatformId] = useState(null);
   const [selectedSyncYear, setSelectedSyncYear] = useState({});
+  const [syncingActivitiesPlatformId, setSyncingActivitiesPlatformId] = useState(null);
+  const [selectedActivityYear, setSelectedActivityYear] = useState({});
 
   useEffect(() => {
     loadPlatforms();
@@ -105,6 +107,31 @@ function PlatformConnector() {
     }
   };
 
+  const handleSyncActivities = async (platformId) => {
+    try {
+      setSyncingActivitiesPlatformId(platformId);
+      const syncOption = selectedActivityYear[platformId] || 'current';
+
+      let allYears = false;
+      let year = null;
+
+      if (syncOption === 'all') {
+        allYears = true;
+      } else if (syncOption !== 'current') {
+        year = parseInt(syncOption);
+      }
+
+      await apiClient.syncActivities(allYears, year);
+
+      const yearText = allYears ? 'all years' : year ? `year ${year}` : 'current year';
+      alert(`Activity sync (${yearText}) completed successfully! Go to Overview tab to see the results.`);
+    } catch (err) {
+      alert(`Activity sync failed: ${err.message}`);
+    } finally {
+      setSyncingActivitiesPlatformId(null);
+    }
+  };
+
   if (loading) {
     return <div className="platform-connector loading">Loading platforms...</div>;
   }
@@ -140,29 +167,58 @@ function PlatformConnector() {
                   )}
                 </div>
               </div>
-              <div className="platform-actions">
-                <select
-                  className="sync-year-selector"
-                  value={selectedSyncYear[platform.id] || 'current'}
-                  onChange={(e) => setSelectedSyncYear({ ...selectedSyncYear, [platform.id]: e.target.value })}
-                  disabled={syncingPlatformId === platform.id}
-                >
-                  <option value="current">Current year ({new Date().getFullYear()})</option>
-                  {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => {
-                    const year = new Date().getFullYear() - 1 - i;
-                    return <option key={year} value={year}>{year}</option>;
-                  })}
-                  <option value="all">All years (2020-{new Date().getFullYear()})</option>
-                </select>
+
+              <div className="platform-sync-section">
+                <div className="sync-row">
+                  <label className="sync-label">Heatmap:</label>
+                  <select
+                    className="sync-year-selector"
+                    value={selectedSyncYear[platform.id] || 'current'}
+                    onChange={(e) => setSelectedSyncYear({ ...selectedSyncYear, [platform.id]: e.target.value })}
+                    disabled={syncingPlatformId === platform.id}
+                  >
+                    <option value="current">Current year ({new Date().getFullYear()})</option>
+                    {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => {
+                      const year = new Date().getFullYear() - 1 - i;
+                      return <option key={year} value={year}>{year}</option>;
+                    })}
+                    <option value="all">All years (2020-{new Date().getFullYear()})</option>
+                  </select>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleSync(platform.id)}
+                    disabled={syncingPlatformId === platform.id}
+                  >
+                    {syncingPlatformId === platform.id ? 'Syncing...' : 'Sync'}
+                  </button>
+                </div>
+
+                <div className="sync-row">
+                  <label className="sync-label">Activities:</label>
+                  <select
+                    className="sync-year-selector"
+                    value={selectedActivityYear[platform.id] || 'current'}
+                    onChange={(e) => setSelectedActivityYear({ ...selectedActivityYear, [platform.id]: e.target.value })}
+                    disabled={syncingActivitiesPlatformId === platform.id}
+                  >
+                    <option value="current">Current year ({new Date().getFullYear()})</option>
+                    {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => {
+                      const year = new Date().getFullYear() - 1 - i;
+                      return <option key={year} value={year}>{year}</option>;
+                    })}
+                    <option value="all">All years (2020-{new Date().getFullYear()})</option>
+                  </select>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleSyncActivities(platform.id)}
+                    disabled={syncingActivitiesPlatformId === platform.id}
+                  >
+                    {syncingActivitiesPlatformId === platform.id ? 'Syncing...' : 'Sync'}
+                  </button>
+                </div>
+
                 <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => handleSync(platform.id)}
-                  disabled={syncingPlatformId === platform.id}
-                >
-                  {syncingPlatformId === platform.id ? 'Syncing...' : 'Sync'}
-                </button>
-                <button
-                  className="btn btn-danger btn-sm"
+                  className="btn btn-danger btn-sm remove-btn"
                   onClick={() => handleDisconnect(platform.id)}
                 >
                   Remove

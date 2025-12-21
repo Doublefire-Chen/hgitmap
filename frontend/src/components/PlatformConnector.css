@@ -35,10 +35,7 @@
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: 1.5rem;
   transition: box-shadow 0.2s;
 }
 
@@ -49,8 +46,8 @@
 .platform-info {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  flex: 1;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .platform-details {
@@ -75,6 +72,31 @@
 .last-sync {
   font-size: 0.75rem;
   color: var(--text-tertiary);
+}
+
+/* Platform sync section */
+.platform-sync-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sync-label {
+  min-width: 80px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.remove-btn {
+  margin-top: 0.5rem;
+  align-self: flex-start;
 }
 
 .platform-actions {

@@ -50,6 +50,93 @@ CREATE TABLE contributions (
 CREATE INDEX idx_contributions_date ON contributions(contribution_date);
 CREATE INDEX idx_contributions_account_date ON contributions(git_platform_account_id, contribution_date);
 
+-- Activity type enum for contribution timeline
+CREATE TYPE activity_type AS ENUM (
+    'commit',
+    'repository_created',
+    'pull_request',
+    'issue',
+    'review',
+    'organization_joined',
+    'fork',
+    'release',
+    'star'
+);
+
+-- Activities table for contribution timeline
+-- This stores various types of activities (commits, repos created, PRs, issues, etc.)
+CREATE TABLE activities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    git_platform_account_id UUID NOT NULL REFERENCES git_platform_accounts(id) ON DELETE CASCADE,
+    activity_type activity_type NOT NULL,
+    activity_date DATE NOT NULL,
+
+    -- Activity metadata (stored as JSONB for flexibility)
+    -- Structure varies by activity_type (see examples below)
+    metadata JSONB NOT NULL DEFAULT '{}',
+
+    -- Common fields extracted for easier querying
+    repository_name VARCHAR(512),
+    repository_url VARCHAR(1024),
+    is_private_repo BOOLEAN DEFAULT false,
+    count INTEGER DEFAULT 1, -- For commits, this is the commit count
+
+    -- Primary language for repository_created activities
+    primary_language VARCHAR(50),
+
+    -- Organization name for organization_joined activities
+    organization_name VARCHAR(255),
+    organization_avatar_url VARCHAR(1024),
+
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for fast activity queries
+CREATE INDEX idx_activities_account_date ON activities(git_platform_account_id, activity_date DESC);
+CREATE INDEX idx_activities_date ON activities(activity_date DESC);
+CREATE INDEX idx_activities_type ON activities(activity_type);
+CREATE INDEX idx_activities_metadata ON activities USING GIN (metadata);
+
+-- Example metadata structures for different activity types:
+--
+-- commit:
+-- {
+--   "repositories": [
+--     {
+--       "name": "username/repo",
+--       "commit_count": 10,
+--       "commits": [{"sha": "abc123", "message": "...", "url": "..."}]
+--     }
+--   ],
+--   "total_count": 12
+-- }
+--
+-- repository_created:
+-- {
+--   "name": "username/repo",
+--   "description": "...",
+--   "language": "Rust",
+--   "is_fork": false,
+--   "created_at": "2025-12-16T00:00:00Z"
+-- }
+--
+-- organization_joined:
+-- {
+--   "organization": "org-name",
+--   "avatar_url": "https://...",
+--   "joined_at": "2025-12-14T00:00:00Z"
+-- }
+--
+-- pull_request/issue:
+-- {
+--   "title": "Feature X",
+--   "number": 123,
+--   "state": "open/closed/merged",
+--   "repository": "owner/repo",
+--   "url": "https://..."
+-- }
+
 -- User settings table
 CREATE TABLE user_settings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -125,6 +212,9 @@ CREATE TRIGGER update_git_platform_accounts_updated_at BEFORE UPDATE ON git_plat
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_contributions_updated_at BEFORE UPDATE ON contributions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_activities_updated_at BEFORE UPDATE ON activities
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON user_settings

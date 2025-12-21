@@ -98,6 +98,12 @@ async fn main() -> std::io::Result<()> {
                     .route("/stats", web::get().to(handlers::contributions::get_stats))
             )
             .service(
+                web::scope("/activities")
+                    .wrap(crate::middleware::auth::JwtMiddleware)
+                    .route("", web::get().to(handlers::activities::get_activities))
+                    .route("/sync", web::post().to(handlers::activities::sync_activities))
+            )
+            .service(
                 web::scope("/settings")
                     .wrap(crate::middleware::auth::JwtMiddleware)
                     .route("", web::get().to(handlers::settings::get_settings))

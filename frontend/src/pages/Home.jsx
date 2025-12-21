@@ -4,13 +4,14 @@ import { useNavigate, Link } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle';
 import Heatmap from '../components/Heatmap';
 import PlatformConnector from '../components/PlatformConnector';
+import ActivityTimeline from '../components/ActivityTimeline';
 import HeatmapLogo from '../components/HeatmapLogo';
 import './Home.css';
 
 const Home = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('heatmap');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const handleLogout = () => {
     logout();
@@ -39,10 +40,10 @@ const Home = () => {
 
         <div className="tabs">
           <button
-            className={`tab ${activeTab === 'heatmap' ? 'active' : ''}`}
-            onClick={() => setActiveTab('heatmap')}
+            className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
           >
-            Heatmap
+            Overview
           </button>
           <button
             className={`tab ${activeTab === 'platforms' ? 'active' : ''}`}
@@ -54,7 +55,12 @@ const Home = () => {
       </header>
 
       <main className="home-content">
-        {activeTab === 'heatmap' && <Heatmap />}
+        {activeTab === 'overview' && (
+          <>
+            <Heatmap />
+            <ActivityTimeline />
+          </>
+        )}
         {activeTab === 'platforms' && <PlatformConnector />}
       </main>
     </div>

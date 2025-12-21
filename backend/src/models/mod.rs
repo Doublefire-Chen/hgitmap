@@ -5,4 +5,5 @@ pub mod user_setting;
 pub mod api_token;
 pub mod oauth_application;
 pub mod oauth_state;
+pub mod activity;
 

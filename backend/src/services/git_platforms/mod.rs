@@ -1,9 +1,12 @@
 pub mod github;
 
+pub use github::GitHubClient;
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use anyhow::Result;
+use serde_json::Value as JsonValue;
 
 /// Represents a contribution event from a git platform
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -23,6 +26,35 @@ pub enum ContributionType {
     Issue,
     Review,
     Other,
+}
+
+/// Represents an activity (for activity timeline)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Activity {
+    pub activity_type: ActivityType,
+    pub date: chrono::NaiveDate,
+    pub metadata: JsonValue,
+    pub repository_name: Option<String>,
+    pub repository_url: Option<String>,
+    pub is_private: bool,
+    pub count: i32,
+    pub primary_language: Option<String>,
+    pub organization_name: Option<String>,
+    pub organization_avatar_url: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityType {
+    Commit,
+    RepositoryCreated,
+    PullRequest,
+    Issue,
+    Review,
+    OrganizationJoined,
+    Fork,
+    Release,
+    Star,
 }
 
 /// User information returned from platform APIs
@@ -111,4 +143,24 @@ pub trait GitPlatform: Send + Sync {
         config: &PlatformConfig,
         token: &str,
     ) -> Result<Vec<Repository>>;
+
+    /// Fetch user activities (for activity timeline)
+    async fn fetch_activities(
+        &self,
+        config: &PlatformConfig,
+        username: &str,
+        token: &str,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<Activity>>;
+
+    /// Fetch repository creation activities (works for all history, not limited by Events API)
+    async fn fetch_repository_creation_activities(
+        &self,
+        config: &PlatformConfig,
+        username: &str,
+        token: &str,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<Activity>>;
 }
