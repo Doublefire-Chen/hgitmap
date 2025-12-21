@@ -10,6 +10,7 @@
 }
 
 .header-content {
+  max-width: 1280px;
   width: 100%;
   margin: 0 auto;
   padding: 0 32px 16px 32px;
@@ -88,6 +89,7 @@
 }
 
 .tabs {
+  max-width: 1280px;
   width: 100%;
   margin: 0 auto;
   padding: 0 32px;
@@ -121,6 +123,7 @@
 }
 
 .home-content {
+  max-width: 1280px;
   width: 100%;
   margin: 0 auto;
   padding: 0;

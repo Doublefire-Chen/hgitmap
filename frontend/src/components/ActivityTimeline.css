@@ -2,7 +2,7 @@
 .activity-timeline {
   width: 100%;
   margin: 0 auto;
-  padding: 2rem 32px;
+  padding: 24px 32px;
   border-top: 1px solid var(--border-color);
 }
 
@@ -10,13 +10,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 16px;
 }
 
 .timeline-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -46,27 +46,27 @@
 }
 
 .month-group {
-  margin-bottom: 2rem;
+  margin-bottom: 24px;
 }
 
 .month-header {
-  font-size: 0.875rem;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .activities-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 16px;
 }
 
 .activity-item {
   display: flex;
-  gap: 0.75rem;
+  gap: 8px;
   padding: 0;
   border-radius: 0;
   transition: background-color 0.2s;
@@ -77,30 +77,33 @@
 }
 
 .activity-icon {
-  font-size: 1.125rem;
   flex-shrink: 0;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 32px;
+  height: 32px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding-top: 0.125rem;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
 }
 
 .activity-content {
   flex: 1;
   min-width: 0;
+  padding-top: 2px;
 }
 
 .activity-header {
-  font-size: 0.875rem;
+  font-size: 14px;
   color: var(--text-primary);
-  margin-bottom: 0.25rem;
+  margin-bottom: 4px;
   line-height: 1.5;
 }
 
 .activity-header a {
-  color: var(--link-color);
+  color: var(--text-link);
   text-decoration: none;
   font-weight: 600;
 }
@@ -110,20 +113,20 @@
 }
 
 .activity-details {
-  margin-top: 0.5rem;
-  margin-bottom: 0.25rem;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .repository-item {
-  padding: 0.375rem 0;
+  padding: 4px 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  gap: 8px;
+  font-size: 12px;
 }
 
 .repository-item a {
-  color: var(--link-color);
+  color: var(--text-link);
   text-decoration: none;
   font-weight: 600;
 }
@@ -133,16 +136,16 @@
 }
 
 .commit-count {
-  font-size: 0.75rem;
+  font-size: 11px;
   color: var(--text-secondary);
   margin-left: auto;
   flex-shrink: 0;
 }
 
 .commit-bar {
-  width: 80px;
-  height: 6px;
-  background-color: var(--bg-secondary);
+  width: 64px;
+  height: 5px;
+  background-color: var(--bg-tertiary);
   border-radius: 3px;
   overflow: hidden;
   flex-shrink: 0;
@@ -150,33 +153,34 @@
 
 .commit-fill {
   height: 100%;
-  background-color: var(--primary-color);
+  /* backgroundColor is set inline with dynamic color */
   border-radius: 3px;
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, background-color 0.3s ease;
 }
 
 .language-tag {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.125rem 0.5rem;
-  background-color: var(--bg-secondary);
+  gap: 4px;
+  padding: 0 6px;
+  height: 20px;
+  background-color: transparent;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  font-size: 0.75rem;
+  border-radius: 10px;
+  font-size: 11px;
   font-weight: 500;
-  margin-left: 0.5rem;
+  margin-left: 8px;
 }
 
 .language-tag::before {
   content: '';
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background-color: var(--language-color, #858585);
 }
 
-/* GitHub language colors */
+/* GitHub language colors (from official linguist repository) */
 .language-tag[data-language="Python"]::before {
   background-color: #3572A5;
 }
@@ -186,7 +190,7 @@
 }
 
 .language-tag[data-language="TypeScript"]::before {
-  background-color: #2b7489;
+  background-color: #3178c6;
 }
 
 .language-tag[data-language="Java"]::before {
@@ -201,9 +205,12 @@
   background-color: #dea584;
 }
 
-.language-tag[data-language="C++"]::before,
-.language-tag[data-language="C"]::before {
+.language-tag[data-language="C++"]::before {
   background-color: #f34b7d;
+}
+
+.language-tag[data-language="C"]::before {
+  background-color: #555555;
 }
 
 .language-tag[data-language="Ruby"]::before {
@@ -215,11 +222,11 @@
 }
 
 .language-tag[data-language="Swift"]::before {
-  background-color: #ffac45;
+  background-color: #FA7343;
 }
 
 .language-tag[data-language="Kotlin"]::before {
-  background-color: #F18E33;
+  background-color: #A97BFF;
 }
 
 .language-tag[data-language="HTML"]::before {
@@ -227,41 +234,52 @@
 }
 
 .language-tag[data-language="CSS"]::before {
-  background-color: #563d7c;
+  background-color: #663399;
 }
 
-.language-tag[data-language="Shell"]::before,
-.language-tag[data-language="Bash"]::before {
+.language-tag[data-language="Shell"]::before {
   background-color: #89e051;
 }
 
+.language-tag[data-language="Bash"]::before {
+  background-color: #4EAA25;
+}
+
+.language-tag[data-language="Dart"]::before {
+  background-color: #00B4AB;
+}
+
+.language-tag[data-language="Objective-C"]::before {
+  background-color: #438eff;
+}
+
 .activity-date {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--text-secondary);
-  margin-top: 0.25rem;
+  margin-top: 4px;
 }
 
 .load-more-container {
   display: flex;
   justify-content: center;
-  margin: 2rem 0 1rem;
+  margin: 24px 0 16px;
 }
 
 .load-more-button {
-  padding: 0.5rem 1rem;
-  background-color: var(--bg-secondary);
+  padding: 5px 16px;
+  background-color: var(--bg-primary);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .load-more-button:hover:not(:disabled) {
-  background-color: var(--bg-hover);
-  border-color: var(--border-dark);
+  background-color: var(--bg-secondary);
+  border-color: var(--border-emphasis);
 }
 
 .load-more-button:disabled {
@@ -272,13 +290,13 @@
 .loading-message,
 .empty-message {
   text-align: center;
-  padding: 2rem 1rem;
+  padding: 32px 16px;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 14px;
 }
 
 .empty-message p {
-  margin: 0.5rem 0;
+  margin: 8px 0;
 }
 
 .empty-message p:first-child {
@@ -288,13 +306,13 @@
 
 .error-message {
   text-align: center;
-  padding: 1rem;
-  color: var(--error-color);
-  background-color: var(--error-bg);
-  border: 1px solid var(--error-border);
-  border-radius: 6px;
-  margin: 1rem 0;
-  font-size: 0.875rem;
+  padding: 16px;
+  color: var(--danger-fg);
+  background-color: var(--danger-muted);
+  border: 1px solid var(--danger-emphasis);
+  border-radius: var(--radius-sm);
+  margin: 16px 0;
+  font-size: 14px;
 }
 
 /* CSS Variables (ensure these are defined in your global styles) */
@@ -331,13 +349,13 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .activity-timeline {
-    padding: 1rem;
+    padding: 16px;
   }
 
   .timeline-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 12px;
   }
 
   .sync-button {
@@ -346,25 +364,24 @@
   }
 
   .timeline-title {
-    font-size: 0.875rem;
+    font-size: 14px;
   }
 
   .month-header {
-    font-size: 0.8125rem;
+    font-size: 12px;
   }
 
   .activity-item {
-    gap: 0.5rem;
+    gap: 8px;
   }
 
   .activity-icon {
-    font-size: 1rem;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 28px;
+    height: 28px;
   }
 
   .activity-header {
-    font-size: 0.8125rem;
+    font-size: 13px;
   }
 
   .repository-item {
@@ -375,7 +392,7 @@
     order: 3;
     width: 100%;
     margin-left: 0;
-    margin-top: 0.25rem;
+    margin-top: 4px;
   }
 
   .commit-bar {

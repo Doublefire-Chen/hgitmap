@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../api/client';
+import ActivityIcons from './ActivityIcons';
 import './ActivityTimeline.css';
 
 function ActivityTimeline() {
@@ -8,7 +9,6 @@ function ActivityTimeline() {
   const [error, setError] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [total, setTotal] = useState(0);
   const limit = 20;
 
   const loadActivities = useCallback(async (newOffset = 0) => {
@@ -29,7 +29,6 @@ function ActivityTimeline() {
       }
 
       setHasMore(data.has_more);
-      setTotal(data.total);
       setOffset(newOffset);
 
       console.log(`✅ Loaded ${data.activities?.length || 0} activities (total: ${data.total})`);
@@ -95,28 +94,30 @@ function ActivityTimeline() {
   };
 
   const getActivityIcon = (type) => {
-    switch (type) {
-      case 'Commit':
-        return '📝';
-      case 'RepositoryCreated':
-        return '📦';
-      case 'PullRequest':
-        return '🔀';
-      case 'Issue':
-        return '🐛';
-      case 'Review':
-        return '👀';
-      case 'OrganizationJoined':
-        return '🏢';
-      case 'Fork':
-        return '🍴';
-      case 'Release':
-        return '🚀';
-      case 'Star':
-        return '⭐';
-      default:
-        return '•';
+    const IconComponent = ActivityIcons[type] || ActivityIcons.Default;
+    return <IconComponent />;
+  };
+
+  const getCommitBarColor = (commitCount, maxCommits) => {
+    // Calculate intensity similar to heatmap (0-4 levels)
+    const percentage = commitCount / maxCommits;
+
+    // Check if dark theme is active
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+    // Use GitHub's contribution colors (light theme)
+    if (!isDark) {
+      if (percentage >= 0.75) return '#2da44e'; // level-3
+      if (percentage >= 0.50) return '#4ac26b'; // level-2
+      if (percentage >= 0.25) return '#aceebb'; // level-1
+      return '#9be9a8'; // light green for smallest
     }
+
+    // Dark theme colors
+    if (percentage >= 0.75) return '#2ea043'; // level-3
+    if (percentage >= 0.50) return '#196c2e'; // level-2
+    if (percentage >= 0.25) return '#033a16'; // level-1
+    return '#0d4429'; // darker green for smallest
   };
 
   const formatActivityType = (type) => {
@@ -128,9 +129,11 @@ function ActivityTimeline() {
     const metadata = activity.metadata;
 
     switch (activity.activity_type) {
-      case 'Commit':
+      case 'Commit': {
         const repos = metadata.repositories || [];
         const totalCommits = activity.count;
+        const maxCommits = Math.max(...repos.map(r => r.commit_count));
+
         return (
           <div className="activity-item" key={activity.id}>
             <div className="activity-icon">{getActivityIcon(activity.activity_type)}</div>
@@ -148,7 +151,10 @@ function ActivityTimeline() {
                     <div className="commit-bar">
                       <div
                         className="commit-fill"
-                        style={{ width: `${(repo.commit_count / totalCommits) * 100}%` }}
+                        style={{
+                          width: `${(repo.commit_count / totalCommits) * 100}%`,
+                          backgroundColor: getCommitBarColor(repo.commit_count, maxCommits)
+                        }}
                       />
                     </div>
                   </div>
@@ -158,6 +164,7 @@ function ActivityTimeline() {
             </div>
           </div>
         );
+      }
 
       case 'RepositoryCreated':
         return (
