@@ -1,5 +1,6 @@
 use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
-use actix_web::{Error, HttpMessage, error::ErrorUnauthorized};
+use actix_web::{Error, HttpMessage, HttpResponse, http::header, error::ErrorUnauthorized};
+use actix_web::body::EitherBody;
 use futures_util::future::LocalBoxFuture;
 use std::future::{ready, Ready};
 use std::rc::Rc;
@@ -46,7 +47,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Transform = JwtMiddlewareService<S>;
     type InitError = ();
@@ -69,7 +70,7 @@ where
     S::Future: 'static,
     B: 'static,
 {
-    type Response = ServiceResponse<B>;
+    type Response = ServiceResponse<EitherBody<B>>;
     type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
@@ -82,40 +83,68 @@ where
             log::debug!("🔐 [JWT Middleware] Checking authentication for: {} {}", req.method(), req.path());
 
             // Extract JWT secret from app data
-            let config = req.app_data::<actix_web::web::Data<Config>>()
-                .ok_or_else(|| {
+            let config = match req.app_data::<actix_web::web::Data<Config>>() {
+                Some(c) => c,
+                None => {
                     log::error!("❌ [JWT Middleware] Configuration not found");
-                    ErrorUnauthorized("Configuration not found")
-                })?;
+                    let response = HttpResponse::Unauthorized()
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Accept, Content-Type"))
+                        .json(serde_json::json!({ "error": "Configuration not found" }));
+                    return Ok(req.into_response(response).map_into_right_body());
+                }
+            };
 
             let jwt_secret = &config.jwt_secret;
 
             // Extract and validate token
-            let auth_header = req
-                .headers()
-                .get("Authorization")
-                .and_then(|h| h.to_str().ok())
-                .ok_or_else(|| {
+            let auth_header = match req.headers().get("Authorization").and_then(|h| h.to_str().ok()) {
+                Some(h) => h,
+                None => {
                     log::warn!("⚠️  [JWT Middleware] Missing authorization header");
-                    ErrorUnauthorized("Missing authorization header")
-                })?;
+                    let response = HttpResponse::Unauthorized()
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Accept, Content-Type"))
+                        .json(serde_json::json!({ "error": "Missing authorization header" }));
+                    return Ok(req.into_response(response).map_into_right_body());
+                }
+            };
 
             log::debug!("🔑 [JWT Middleware] Authorization header present");
 
-            let token = auth_header
-                .strip_prefix("Bearer ")
-                .ok_or_else(|| {
+            let token = match auth_header.strip_prefix("Bearer ") {
+                Some(t) => t,
+                None => {
                     log::error!("❌ [JWT Middleware] Invalid authorization format (missing 'Bearer ')");
-                    ErrorUnauthorized("Invalid authorization format")
-                })?;
+                    let response = HttpResponse::Unauthorized()
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Accept, Content-Type"))
+                        .json(serde_json::json!({ "error": "Invalid authorization format" }));
+                    return Ok(req.into_response(response).map_into_right_body());
+                }
+            };
 
             log::debug!("🔍 [JWT Middleware] Decoding JWT token");
 
-            let claims = decode_jwt(token, jwt_secret)
-                .map_err(|e| {
+            let claims = match decode_jwt(token, jwt_secret) {
+                Ok(c) => c,
+                Err(e) => {
                     log::error!("❌ [JWT Middleware] JWT decode error: {}", e);
-                    ErrorUnauthorized("Invalid or expired token")
-                })?;
+                    let response = HttpResponse::Unauthorized()
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_METHODS, "GET, POST, PUT, DELETE, OPTIONS"))
+                        .insert_header((header::ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Accept, Content-Type"))
+                        .json(serde_json::json!({ "error": "Invalid or expired token" }));
+                    return Ok(req.into_response(response).map_into_right_body());
+                }
+            };
 
             log::debug!("✅ [JWT Middleware] JWT validated for user: {}", claims.sub);
 
@@ -123,7 +152,8 @@ where
             req.extensions_mut().insert(claims);
 
             // Call the next service
-            service.call(req).await
+            let res = service.call(req).await?;
+            Ok(res.map_into_left_body())
         })
     }
 }

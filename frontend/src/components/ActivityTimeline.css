@@ -92,14 +92,21 @@
 .activity-content {
   flex: 1;
   min-width: 0;
-  padding-top: 2px;
+}
+
+.activity-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
 }
 
 .activity-header {
   font-size: 14px;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  font-weight: 400;
   line-height: 1.5;
+  padding-right: 12px;
 }
 
 .activity-header a {
@@ -253,10 +260,73 @@
   background-color: #438eff;
 }
 
+.issue-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s;
+}
+
+.issue-card:hover {
+  border-color: var(--border-emphasis);
+}
+
+.issue-icon {
+  flex-shrink: 0;
+  margin-top: 4px;
+  color: #8250df;
+}
+
+.issue-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.issue-title {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.issue-title a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.issue-title a:hover {
+  color: var(--text-link);
+}
+
+.issue-body {
+  margin: 0 0 8px 0;
+}
+
+.issue-body p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.issue-footer {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+}
+
 .activity-date {
   font-size: 12px;
   color: var(--text-secondary);
-  margin-top: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .load-more-container {

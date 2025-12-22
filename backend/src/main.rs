@@ -55,16 +55,21 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_method()
-            .allow_any_header()
+            .allowed_origin("http://localhost:5173")
+            .allowed_origin("http://localhost:3000")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allowed_headers(vec![
+                actix_web::http::header::AUTHORIZATION,
+                actix_web::http::header::ACCEPT,
+                actix_web::http::header::CONTENT_TYPE,
+            ])
             .max_age(3600);
 
         App::new()
             .app_data(web::Data::new(db.clone()))
             .app_data(web::Data::new(config.clone()))
-            .wrap(cors)
             .wrap(Logger::default())
+            .wrap(cors)  // CORS must be wrapped AFTER Logger to ensure headers are added to all responses
             // Public endpoints (no authentication required)
             .service(
                 web::scope("/auth")

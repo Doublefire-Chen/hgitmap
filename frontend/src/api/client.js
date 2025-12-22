@@ -66,11 +66,16 @@ class ApiClient {
     console.log(`📥 [API] Response status: ${response.status} ${response.statusText}`);
 
     if (response.status === 401) {
-      console.error('❌ [API] Unauthorized - clearing auth and redirecting to login');
+      console.error('❌ [API] Unauthorized - token expired');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+
+      // Show alert to user about session expiration
+      alert('Your session has expired. Please log in again.');
+
       window.location.href = '/login';
-      throw new Error('Unauthorized');
+      // Return a promise that never resolves to prevent further execution
+      return new Promise(() => {});
     }
 
     const data = await response.json();

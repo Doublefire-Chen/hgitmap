@@ -206,20 +206,45 @@ function ActivityTimeline() {
           <div className="activity-item" key={activity.id}>
             <div className="activity-icon">{getActivityIcon(activity.activity_type)}</div>
             <div className="activity-content">
-              <div className="activity-header">
-                {activity.activity_type === 'PullRequest' ? 'Opened pull request' : 'Opened issue'} in{' '}
-                <a href={activity.repository_url} target="_blank" rel="noopener noreferrer">
-                  {activity.repository_name}
-                </a>
+              <div className="activity-header-row">
+                <div className="activity-header">
+                  {activity.activity_type === 'PullRequest' ? 'Created a pull request in' : 'Created an issue in'}{' '}
+                  <a href={activity.repository_url} target="_blank" rel="noopener noreferrer">
+                    {activity.repository_name}
+                  </a>
+                  {metadata.comment_count !== undefined && metadata.comment_count > 0 && (
+                    <span> that received {metadata.comment_count} comment{metadata.comment_count !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+                <div className="activity-date">{formatDate(activity.date)}</div>
               </div>
               {metadata.title && (
                 <div className="activity-details">
-                  <a href={metadata.url} target="_blank" rel="noopener noreferrer">
-                    #{metadata.number}: {metadata.title}
-                  </a>
+                  <div className="issue-card">
+                    <svg className="issue-icon" title="Closed" aria-hidden="true" height="16" viewBox="0 0 16 16" width="16" fill="currentColor">
+                      <path d="M11.28 6.78a.75.75 0 0 0-1.06-1.06L7.25 8.69 5.78 7.22a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0l3.5-3.5Z"></path>
+                      <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0Zm-1.5 0a6.5 6.5 0 1 0-13 0 6.5 6.5 0 0 0 13 0Z"></path>
+                    </svg>
+                    <div className="issue-content">
+                      <h3 className="issue-title">
+                        <a href={metadata.url} target="_blank" rel="noopener noreferrer">
+                          {metadata.title}
+                        </a>
+                      </h3>
+                      {metadata.body && metadata.body.trim() && (
+                        <div className="issue-body">
+                          <p>{metadata.body.length > 200 ? metadata.body.substring(0, 200) + '…' : metadata.body}</p>
+                        </div>
+                      )}
+                      {metadata.comment_count !== undefined && (
+                        <div className="issue-footer">
+                          {metadata.comment_count} comment{metadata.comment_count !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-              <div className="activity-date">{formatDate(activity.date)}</div>
             </div>
           </div>
         );
