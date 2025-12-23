@@ -195,6 +195,10 @@ impl GitHubClient {
                             state
                             createdAt
                             url
+                            body
+                            comments {
+                                totalCount
+                            }
                             repository {
                                 nameWithOwner
                                 isPrivate
@@ -248,16 +252,35 @@ impl GitHubClient {
                             .and_then(|v| v.as_bool())
                             .unwrap_or(false);
 
+                        // Extract body (description) and comment count
+                        let body = node.get("body")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+                        let comment_count = node.get("comments")
+                            .and_then(|c| c.get("totalCount"))
+                            .and_then(|v| v.as_i64())
+                            .unwrap_or(0);
+
+                        let mut metadata = json!({
+                            "title": title,
+                            "number": number,
+                            "state": state,
+                            "repository": repo_name,
+                            "url": url,
+                            "comment_count": comment_count,
+                        });
+
+                        // Only include body if it exists and is not empty
+                        if let Some(body_text) = body {
+                            if !body_text.trim().is_empty() {
+                                metadata.as_object_mut().unwrap().insert("body".to_string(), json!(body_text));
+                            }
+                        }
+
                         all_activities.push(Activity {
                             activity_type: ActivityType::PullRequest,
                             date,
-                            metadata: json!({
-                                "title": title,
-                                "number": number,
-                                "state": state,
-                                "repository": repo_name,
-                                "url": url,
-                            }),
+                            metadata,
                             repository_name: Some(repo_name.to_string()),
                             repository_url: Some(format!("https://github.com/{}", repo_name)),
                             is_private,
@@ -282,6 +305,10 @@ impl GitHubClient {
                             state
                             createdAt
                             url
+                            body
+                            comments {
+                                totalCount
+                            }
                             repository {
                                 nameWithOwner
                                 isPrivate
@@ -335,16 +362,35 @@ impl GitHubClient {
                             .and_then(|v| v.as_bool())
                             .unwrap_or(false);
 
+                        // Extract body (description) and comment count
+                        let body = node.get("body")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+                        let comment_count = node.get("comments")
+                            .and_then(|c| c.get("totalCount"))
+                            .and_then(|v| v.as_i64())
+                            .unwrap_or(0);
+
+                        let mut metadata = json!({
+                            "title": title,
+                            "number": number,
+                            "state": state,
+                            "repository": repo_name,
+                            "url": url,
+                            "comment_count": comment_count,
+                        });
+
+                        // Only include body if it exists and is not empty
+                        if let Some(body_text) = body {
+                            if !body_text.trim().is_empty() {
+                                metadata.as_object_mut().unwrap().insert("body".to_string(), json!(body_text));
+                            }
+                        }
+
                         all_activities.push(Activity {
                             activity_type: ActivityType::Issue,
                             date,
-                            metadata: json!({
-                                "title": title,
-                                "number": number,
-                                "state": state,
-                                "repository": repo_name,
-                                "url": url,
-                            }),
+                            metadata,
                             repository_name: Some(repo_name.to_string()),
                             repository_url: Some(format!("https://github.com/{}", repo_name)),
                             is_private,
