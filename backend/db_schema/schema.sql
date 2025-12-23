@@ -31,6 +31,15 @@ CREATE TABLE git_platform_accounts (
     last_synced_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    -- Profile fields from the git platform
+    avatar_url VARCHAR(1024),
+    display_name VARCHAR(255),
+    bio TEXT,
+    profile_url VARCHAR(1024),
+    location VARCHAR(255),
+    company VARCHAR(255),
+    followers_count INTEGER DEFAULT 0,
+    following_count INTEGER DEFAULT 0,
     UNIQUE(user_id, platform_type, platform_username, platform_url)
 );
 

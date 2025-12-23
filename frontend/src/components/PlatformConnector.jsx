@@ -14,6 +14,7 @@ function PlatformConnector() {
   const [selectedSyncYear, setSelectedSyncYear] = useState({});
   const [syncingActivitiesPlatformId, setSyncingActivitiesPlatformId] = useState(null);
   const [selectedActivityYear, setSelectedActivityYear] = useState({});
+  const [syncingProfileId, setSyncingProfileId] = useState(null);
 
   useEffect(() => {
     loadPlatforms();
@@ -98,12 +99,34 @@ function PlatformConnector() {
       await apiClient.syncPlatform(platformId, allYears, year);
 
       const yearText = allYears ? 'all years' : year ? `year ${year}` : 'current year';
-      alert(`Sync (${yearText}) completed successfully!`);
+      alert(`Sync (${yearText}) completed successfully! Profile data and contributions have been updated.`);
       await loadPlatforms();
+
+      // Trigger a custom event to refresh profile display
+      window.dispatchEvent(new CustomEvent('platformSynced'));
     } catch (err) {
       alert(`Sync failed: ${err.message}`);
     } finally {
       setSyncingPlatformId(null);
+    }
+  };
+
+  const handleSyncProfile = async (platformId) => {
+    try {
+      setSyncingProfileId(platformId);
+
+      // Sync current year only to minimize data transfer - this will update profile data
+      await apiClient.syncPlatform(platformId, false, null);
+
+      alert('Profile synced successfully! Avatar, bio, and other profile details have been updated.');
+      await loadPlatforms();
+
+      // Trigger a custom event to refresh profile display
+      window.dispatchEvent(new CustomEvent('platformSynced'));
+    } catch (err) {
+      alert(`Profile sync failed: ${err.message}`);
+    } finally {
+      setSyncingProfileId(null);
     }
   };
 
@@ -170,7 +193,21 @@ function PlatformConnector() {
 
               <div className="platform-sync-section">
                 <div className="sync-row">
-                  <label className="sync-label">Heatmap:</label>
+                  <label className="sync-label">Profile:</label>
+                  <button
+                    className="btn btn-secondary btn-sm profile-sync-btn"
+                    onClick={() => handleSyncProfile(platform.id)}
+                    disabled={syncingProfileId === platform.id}
+                    title="Refresh profile information (avatar, bio, location, company)"
+                  >
+                    {syncingProfileId === platform.id ? 'Syncing...' : 'Sync Profile'}
+                  </button>
+                </div>
+
+                <div className="sync-row">
+                  <label className="sync-label" title="Syncs contributions">
+                    Heatmap:
+                  </label>
                   <select
                     className="sync-year-selector"
                     value={selectedSyncYear[platform.id] || 'current'}
@@ -188,6 +225,7 @@ function PlatformConnector() {
                     className="btn btn-primary btn-sm"
                     onClick={() => handleSync(platform.id)}
                     disabled={syncingPlatformId === platform.id}
+                    title="Sync contribution data"
                   >
                     {syncingPlatformId === platform.id ? 'Syncing...' : 'Sync'}
                   </button>

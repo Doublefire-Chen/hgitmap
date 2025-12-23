@@ -94,6 +94,11 @@
   color: var(--text-primary);
 }
 
+.profile-sync-btn {
+  flex: 1;
+  min-width: 150px;
+}
+
 .remove-btn {
   margin-top: 0.5rem;
   align-self: flex-start;

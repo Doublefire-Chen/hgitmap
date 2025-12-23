@@ -25,6 +25,15 @@ pub struct PlatformAccountResponse {
     pub last_synced_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    // Profile fields
+    pub avatar_url: Option<String>,
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+    pub profile_url: Option<String>,
+    pub location: Option<String>,
+    pub company: Option<String>,
+    pub followers_count: Option<i32>,
+    pub following_count: Option<i32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -114,6 +123,14 @@ pub async fn connect_platform(
             last_synced_at: Set(None),
             created_at: Set(chrono::Utc::now()),
             updated_at: Set(chrono::Utc::now()),
+            avatar_url: Set(user_info.avatar_url),
+            display_name: Set(None),
+            bio: Set(None),
+            profile_url: Set(None),
+            location: Set(None),
+            company: Set(None),
+            followers_count: Set(None),
+            following_count: Set(None),
         };
 
         git_platform_account::Entity::insert(new_account)
@@ -140,6 +157,14 @@ pub async fn connect_platform(
         last_synced_at: account.last_synced_at.map(|dt| dt.to_rfc3339()),
         created_at: account.created_at.to_rfc3339(),
         updated_at: account.updated_at.to_rfc3339(),
+        avatar_url: account.avatar_url,
+        display_name: account.display_name,
+        bio: account.bio,
+        profile_url: account.profile_url,
+        location: account.location,
+        company: account.company,
+        followers_count: account.followers_count,
+        following_count: account.following_count,
     }))
 }
 
@@ -181,6 +206,14 @@ pub async fn list_platforms(
                 last_synced_at: account.last_synced_at.map(|dt| dt.to_rfc3339()),
                 created_at: account.created_at.to_rfc3339(),
                 updated_at: account.updated_at.to_rfc3339(),
+                avatar_url: account.avatar_url,
+                display_name: account.display_name,
+                bio: account.bio,
+                profile_url: account.profile_url,
+                location: account.location,
+                company: account.company,
+                followers_count: account.followers_count,
+                following_count: account.following_count,
             }
         })
         .collect();
@@ -392,6 +425,79 @@ pub async fn sync_platform(
             }
 
             log::info!("💾 [Sync] Stored contributions: {} inserted, {} updated", total_inserted, total_updated);
+
+            // Fetch and update profile data
+            log::info!("👤 [Sync] Fetching profile data for {}", account.platform_username);
+            match github_client.fetch_user_profile(&platform_config, &account.platform_username, &access_token).await {
+                Ok(profile_data) => {
+                    log::info!("✅ [Sync] Fetched profile data successfully");
+
+                    // Extract profile fields from the JSON response
+                    let avatar_url = profile_data.get("avatar_url")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+
+                    let display_name = profile_data.get("name")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+
+                    let bio = profile_data.get("bio")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+
+                    let profile_url = profile_data.get("html_url")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+
+                    let location = profile_data.get("location")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+
+                    let company = profile_data.get("company")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
+
+                    let followers_count = profile_data.get("followers")
+                        .and_then(|v| v.as_i64())
+                        .map(|n| n as i32);
+
+                    let following_count = profile_data.get("following")
+                        .and_then(|v| v.as_i64())
+                        .map(|n| n as i32);
+
+                    // Update account with profile data
+                    let profile_account = git_platform_account::Entity::find_by_id(account_id)
+                        .one(db.as_ref())
+                        .await
+                        .map_err(|e| {
+                            log::error!("Database error: {}", e);
+                            actix_web::error::ErrorInternalServerError("Database error")
+                        })?
+                        .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+                    let mut profile_active: git_platform_account::ActiveModel = profile_account.into();
+                    profile_active.avatar_url = Set(avatar_url);
+                    profile_active.display_name = Set(display_name);
+                    profile_active.bio = Set(bio);
+                    profile_active.profile_url = Set(profile_url);
+                    profile_active.location = Set(location);
+                    profile_active.company = Set(company);
+                    profile_active.followers_count = Set(followers_count);
+                    profile_active.following_count = Set(following_count);
+                    profile_active.updated_at = Set(Utc::now());
+
+                    profile_active.update(db.as_ref()).await.map_err(|e| {
+                        log::error!("Failed to update profile data: {}", e);
+                        actix_web::error::ErrorInternalServerError("Failed to update profile")
+                    })?;
+
+                    log::info!("💾 [Sync] Stored profile data successfully");
+                }
+                Err(e) => {
+                    log::warn!("⚠️  [Sync] Failed to fetch profile data (continuing sync): {}", e);
+                    // Don't fail the entire sync if profile fetch fails
+                }
+            }
         }
         _ => {
             return Err(actix_web::error::ErrorNotImplemented(
@@ -401,7 +507,16 @@ pub async fn sync_platform(
     }
 
     // Update last_synced_at timestamp
-    let mut account: git_platform_account::ActiveModel = account.into();
+    let account_for_timestamp = git_platform_account::Entity::find_by_id(account_id)
+        .one(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+    let mut account: git_platform_account::ActiveModel = account_for_timestamp.into();
     account.last_synced_at = Set(Some(Utc::now()));
     account.updated_at = Set(Utc::now());
 

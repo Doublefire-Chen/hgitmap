@@ -14,6 +14,36 @@ impl GitHubClient {
         Self
     }
 
+    /// Fetch user profile data from GitHub
+    pub async fn fetch_user_profile(
+        &self,
+        config: &PlatformConfig,
+        username: &str,
+        token: &str,
+    ) -> Result<serde_json::Value> {
+        let client = create_http_client();
+
+        log::info!("👤 Fetching GitHub profile for {}", username);
+
+        let response = client
+            .get(&format!("{}/user", config.api_base_url))
+            .header("Authorization", format!("Bearer {}", token))
+            .header("User-Agent", "hgitmap/0.1.0")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            return Err(anyhow!("Failed to fetch GitHub profile: status {}", status));
+        }
+
+        let profile: serde_json::Value = response.json().await?;
+
+        log::info!("✅ Fetched profile for {}", username);
+
+        Ok(profile)
+    }
+
     /// Fetch repository details including primary language
     async fn fetch_repository_details(
         &self,

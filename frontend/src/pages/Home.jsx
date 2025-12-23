@@ -6,6 +6,7 @@ import Heatmap from '../components/Heatmap';
 import PlatformConnector from '../components/PlatformConnector';
 import ActivityTimeline from '../components/ActivityTimeline';
 import HeatmapLogo from '../components/HeatmapLogo';
+import UserProfile from '../components/UserProfile';
 import './Home.css';
 
 const Home = () => {
@@ -56,10 +57,15 @@ const Home = () => {
 
       <main className="home-content">
         {activeTab === 'overview' && (
-          <>
-            <Heatmap />
-            <ActivityTimeline />
-          </>
+          <div className="overview-layout">
+            <aside className="profile-sidebar">
+              <UserProfile />
+            </aside>
+            <div className="main-content">
+              <Heatmap />
+              <ActivityTimeline />
+            </div>
+          </div>
         )}
         {activeTab === 'platforms' && <PlatformConnector />}
       </main>

@@ -1,0 +1,258 @@
+.user-profile {
+  background: var(--color-canvas-default);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+  position: sticky;
+  top: 16px;
+}
+
+/* Overall Stats Section */
+.profile-stats-overview {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-muted);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--color-fg-default);
+}
+
+.stat-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+.stat-label {
+  color: var(--color-fg-muted);
+}
+
+.stat-label strong {
+  color: var(--color-fg-default);
+  font-weight: 600;
+}
+
+/* Platform Profiles Section */
+.platform-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.platform-profile-card {
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.platform-profile-card:hover {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.platform-header {
+  background: var(--color-canvas-subtle);
+  border-bottom: 1px solid var(--color-border-muted);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--color-fg-muted);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.platform-logo {
+  width: 16px;
+  height: 16px;
+  color: var(--color-fg-muted);
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.platform-type-name {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.platform-avatar {
+  padding: 16px 16px 0 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.platform-avatar-img {
+  width: 100%;
+  height: auto;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-muted);
+  background: var(--color-canvas-default);
+  display: block;
+}
+
+.platform-info {
+  padding: 12px 16px 16px 16px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.vcard-names {
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.profile-name-heading {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.platform-display-name {
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--color-fg-default);
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  word-wrap: break-word;
+}
+
+.platform-username {
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 300;
+  line-height: 24px;
+  color: var(--color-fg-muted);
+  display: block;
+  width: 100%;
+  word-wrap: break-word;
+}
+
+.platform-bio {
+  font-size: 16px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+  color: var(--color-fg-default);
+  width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.platform-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-fg-muted);
+  width: 100%;
+}
+
+.detail-icon {
+  font-size: 16px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.detail-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.platform-followers {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--color-fg-muted);
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.followers-icon {
+  color: var(--color-fg-muted);
+  flex-shrink: 0;
+}
+
+.follower-count {
+  font-weight: 600;
+  color: var(--color-fg-default);
+}
+
+.follower-label {
+  color: var(--color-fg-muted);
+}
+
+.follower-separator {
+  color: var(--color-fg-muted);
+  margin: 0 2px;
+}
+
+.platform-profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-accent-fg);
+  text-decoration: none;
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+
+.platform-profile-link:hover {
+  color: var(--color-accent-emphasis);
+  text-decoration: underline;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.empty-message {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-fg-default);
+  margin: 0 0 8px 0;
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: var(--color-fg-muted);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .user-profile {
+    position: static;
+  }
+}

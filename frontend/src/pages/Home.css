@@ -139,6 +139,37 @@
   background: var(--bg-primary);
 }
 
+.overview-layout {
+  display: grid;
+  grid-template-columns: 296px 1fr;
+  gap: 24px;
+  padding: 24px 32px;
+}
+
+.profile-sidebar {
+  position: relative;
+}
+
+.main-content {
+  min-width: 0; /* Prevents grid blowout */
+}
+
+@media (max-width: 1024px) {
+  .overview-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .profile-sidebar {
+    order: 2;
+  }
+
+  .main-content {
+    order: 1;
+  }
+}
+
 @media (max-width: 768px) {
   .header-content {
     padding: 0 16px;

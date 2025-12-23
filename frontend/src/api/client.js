@@ -102,6 +102,10 @@ class ApiClient {
     return this.fetchWithAuth('/platforms');
   }
 
+  async getPlatforms() {
+    return this.listPlatforms();
+  }
+
   async disconnectPlatform(platformId) {
     return this.fetchWithAuth(`/platforms/${platformId}`, {
       method: 'DELETE',

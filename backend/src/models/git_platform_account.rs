@@ -27,6 +27,15 @@ pub struct Model {
     pub last_synced_at: Option<ChronoDateTimeUtc>,
     pub created_at: ChronoDateTimeUtc,
     pub updated_at: ChronoDateTimeUtc,
+    // Profile fields
+    pub avatar_url: Option<String>,
+    pub display_name: Option<String>,
+    pub bio: Option<String>,
+    pub profile_url: Option<String>,
+    pub location: Option<String>,
+    pub company: Option<String>,
+    pub followers_count: Option<i32>,
+    pub following_count: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -302,6 +302,14 @@ pub async fn github_callback(
             last_synced_at: Set(None),
             created_at: Set(chrono::Utc::now()),
             updated_at: Set(chrono::Utc::now()),
+            avatar_url: Set(user_info.avatar_url),
+            display_name: Set(None),
+            bio: Set(None),
+            profile_url: Set(None),
+            location: Set(None),
+            company: Set(None),
+            followers_count: Set(None),
+            following_count: Set(None),
         };
 
         git_platform_account::Entity::insert(new_account)
