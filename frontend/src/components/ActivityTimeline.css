@@ -64,6 +64,13 @@
   gap: 16px;
 }
 
+.empty-month-message {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
 .activity-item {
   display: flex;
   gap: 8px;

@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/client';
 import ActivityIcons from './ActivityIcons';
 import './ActivityTimeline.css';
 
 function ActivityTimeline() {
+  const { user } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [platforms, setPlatforms] = useState([]);
   const limit = 20;
 
   const loadActivities = useCallback(async (newOffset = 0) => {
@@ -42,6 +45,18 @@ function ActivityTimeline() {
 
   useEffect(() => {
     loadActivities(0);
+
+    // Fetch platforms to get platform usernames
+    const fetchPlatforms = async () => {
+      try {
+        const platformsData = await apiClient.getPlatforms();
+        setPlatforms(platformsData);
+      } catch (err) {
+        console.error('Failed to fetch platforms:', err);
+      }
+    };
+
+    fetchPlatforms();
   }, [loadActivities]);
 
   const loadMore = () => {
@@ -91,6 +106,32 @@ function ActivityTimeline() {
     });
 
     return groups;
+  };
+
+  const generateAllMonths = (groupedActivities) => {
+    // Generate all months from 12 months ago to current month
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now);
+    twelveMonthsAgo.setMonth(now.getMonth() - 11);
+    twelveMonthsAgo.setDate(1);
+
+    const allMonths = [];
+    const currentDate = new Date(twelveMonthsAgo);
+
+    while (currentDate <= now) {
+      const monthYear = `${currentDate.toLocaleString('default', { month: 'long' })} ${currentDate.getFullYear()}`;
+
+      allMonths.push({
+        key: monthYear,
+        activities: groupedActivities[monthYear] || [],
+        isEmpty: !groupedActivities[monthYear] || groupedActivities[monthYear].length === 0
+      });
+
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    // Reverse to show most recent first
+    return allMonths.reverse();
   };
 
   const getActivityIcon = (type) => {
@@ -278,13 +319,10 @@ function ActivityTimeline() {
   }
 
   const groupedActivities = groupActivitiesByMonth();
+  const allMonths = generateAllMonths(groupedActivities);
 
-  // Sort months chronologically (most recent first)
-  const sortedMonths = Object.entries(groupedActivities).sort((a, b) => {
-    const dateA = new Date(a[1][0].date); // Get date from first activity in month
-    const dateB = new Date(b[1][0].date);
-    return dateB - dateA; // Descending order (newest first)
-  });
+  // Get platform username (prefer first platform's username)
+  const platformUsername = platforms.length > 0 ? platforms[0].platform_username : (user?.username || 'User');
 
   return (
     <div className="activity-timeline">
@@ -294,19 +332,20 @@ function ActivityTimeline() {
 
       {loading && activities.length === 0 ? (
         <div className="loading-message">Loading activities...</div>
-      ) : activities.length === 0 ? (
-        <div className="empty-message">
-          <p>No activities yet.</p>
-          <p>Go to the Platforms tab and click "Sync Activities" to fetch your contribution activity.</p>
-        </div>
       ) : (
         <div className="timeline-content">
-          {sortedMonths.map(([monthYear, monthActivities]) => (
-            <div key={monthYear} className="month-group">
-              <h3 className="month-header">{monthYear}</h3>
-              <div className="activities-list">
-                {monthActivities.map(activity => renderActivity(activity))}
-              </div>
+          {allMonths.map((month) => (
+            <div key={month.key} className="month-group">
+              <h3 className="month-header">{month.key}</h3>
+              {month.isEmpty ? (
+                <div className="empty-month-message">
+                  <span>{platformUsername} had no activity during this period.</span>
+                </div>
+              ) : (
+                <div className="activities-list">
+                  {month.activities.map(activity => renderActivity(activity))}
+                </div>
+              )}
             </div>
           ))}
 
