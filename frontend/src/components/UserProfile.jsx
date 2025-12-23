@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import apiClient from '../api/client';
 import './UserProfile.css';
-import GitHubLogo from '../assets/github.svg';
+import GitHubLogoLight from '../assets/github-light.svg';
+import GitHubLogoDark from '../assets/github-dark.svg';
 
 const UserProfile = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [stats, setStats] = useState(null);
   const [platforms, setPlatforms] = useState([]);
 
@@ -48,7 +51,7 @@ const UserProfile = () => {
   const getPlatformLogo = (platformType) => {
     switch (platformType) {
       case 'github':
-        return GitHubLogo;
+        return theme === 'dark' ? GitHubLogoDark : GitHubLogoLight;
       default:
         return null;
     }
