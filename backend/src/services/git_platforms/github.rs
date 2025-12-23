@@ -2,7 +2,7 @@ use super::{Activity, ActivityType, Contribution, ContributionType, GitPlatform,
 use crate::utils::http_client::create_http_client;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -166,6 +166,315 @@ impl GitHubClient {
         log::info!("📦 Fetched {} repository creation activities from GraphQL", activities.len());
 
         Ok(activities)
+    }
+
+    /// Fetch user's public organizations (no OAuth approval required)
+    /// Note: Only returns organizations where the user has made their membership public
+    pub async fn fetch_user_organizations(
+        &self,
+        config: &PlatformConfig,
+        username: &str,
+        _token: &str, // Token not needed for public orgs, but kept for API compatibility
+    ) -> Result<Vec<(String, String)>> {
+        let client = create_http_client();
+
+        // Use the public /users/{username}/orgs endpoint
+        // This endpoint doesn't require authentication and shows public memberships only
+        let response = client
+            .get(&format!("{}/users/{}/orgs", config.api_base_url, username))
+            .header("User-Agent", "hgitmap/0.1.0")
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(anyhow!("Failed to fetch user organizations: status {}", response.status()));
+        }
+
+        let orgs: Vec<serde_json::Value> = response.json().await?;
+
+        let mut organizations = Vec::new();
+
+        for org in orgs {
+            if let (Some(login), Some(avatar_url)) = (
+                org.get("login").and_then(|v| v.as_str()),
+                org.get("avatar_url").and_then(|v| v.as_str()),
+            ) {
+                organizations.push((login.to_string(), avatar_url.to_string()));
+            }
+        }
+
+        log::info!("🏢 Fetched {} public organizations for user {}", organizations.len(), username);
+
+        Ok(organizations)
+    }
+
+    /// Find the earliest activity date for a user in a specific organization
+    /// by querying their public events and looking for the earliest event mentioning that org
+    pub async fn find_earliest_org_activity_date(
+        &self,
+        config: &PlatformConfig,
+        username: &str,
+        org_login: &str,
+    ) -> Result<Option<chrono::NaiveDate>> {
+        let client = create_http_client();
+
+        // Fetch user events (up to 300 events across 3 pages)
+        let mut earliest_date: Option<chrono::NaiveDate> = None;
+        let mut page = 1;
+        let per_page = 100;
+
+        log::info!("🔍 Searching for earliest activity in org {} for user {}", org_login, username);
+
+        while page <= 3 {
+            let response = client
+                .get(&format!("{}/users/{}/events/public", config.api_base_url, username))
+                .header("User-Agent", "hgitmap/0.1.0")
+                .header("Accept", "application/vnd.github+json")
+                .query(&[("per_page", &per_page.to_string()), ("page", &page.to_string())])
+                .send()
+                .await?;
+
+            if !response.status().is_success() {
+                log::warn!("Failed to fetch events for org date detection: status {}", response.status());
+                break;
+            }
+
+            let events: Vec<serde_json::Value> = response.json().await?;
+
+            if events.is_empty() {
+                break;
+            }
+
+            // Look for events related to this organization
+            for event in events {
+                let mut is_org_event = false;
+
+                // Check if this event has an org field matching our target org
+                if let Some(org) = event.get("org") {
+                    if let Some(org_login_field) = org.get("login").and_then(|v| v.as_str()) {
+                        if org_login_field == org_login {
+                            is_org_event = true;
+                        }
+                    }
+                }
+
+                // Also check if the event's repository belongs to this org
+                // Repository names are formatted as "org/repo"
+                if !is_org_event {
+                    if let Some(repo) = event.get("repo") {
+                        if let Some(repo_name) = repo.get("name").and_then(|v| v.as_str()) {
+                            // Check if repo name starts with "org_login/"
+                            if repo_name.starts_with(&format!("{}/", org_login)) {
+                                is_org_event = true;
+                            }
+                        }
+                    }
+                }
+
+                // If this is an org-related event, get its date
+                if is_org_event {
+                    if let Some(created_at) = event.get("created_at").and_then(|v| v.as_str()) {
+                        if let Ok(event_date) = chrono::DateTime::parse_from_rfc3339(created_at) {
+                            let naive_date = event_date.naive_utc().date();
+
+                            // Update earliest_date if this is earlier
+                            match earliest_date {
+                                None => earliest_date = Some(naive_date),
+                                Some(current_earliest) => {
+                                    if naive_date < current_earliest {
+                                        earliest_date = Some(naive_date);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            page += 1;
+        }
+
+        if let Some(date) = earliest_date {
+            log::info!("✅ Found earliest org activity on {}", date);
+        } else {
+            log::info!("❌ No events found for org {}", org_login);
+        }
+
+        Ok(earliest_date)
+    }
+
+    /// Scrape organization join date from GitHub's web interface
+    /// GitHub shows "Joined organization" events in the contribution activity timeline
+    pub async fn scrape_org_join_date(
+        &self,
+        username: &str,
+        org_login: &str,
+    ) -> Result<Option<chrono::NaiveDate>> {
+        let client = create_http_client();
+
+        log::info!("🕷️  Scraping org join date for {} in {}", username, org_login);
+
+        // GitHub loads the activity timeline as a fragment
+        // Fetch the fragment URL directly instead of the main profile page
+        let url = format!("https://github.com/{}?action=show&controller=profiles&tab=contributions&user_id={}",
+            username, username);
+
+        log::info!("📡 Fetching timeline fragment from: {}", url);
+
+        let response = client
+            .get(&url)
+            .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36")
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            .header("Accept-Language", "en-US,en;q=0.9")
+            .header("Cache-Control", "no-cache")
+            .header("Pragma", "no-cache")
+            .header("Sec-Fetch-Dest", "empty")
+            .header("Sec-Fetch-Mode", "cors")
+            .header("Sec-Fetch-Site", "same-origin")
+            .header("X-Requested-With", "XMLHttpRequest")
+            .header("Referer", &format!("https://github.com/{}", username))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(anyhow!("Failed to fetch GitHub timeline fragment: status {}", response.status()));
+        }
+
+        let html = response.text().await?;
+
+        log::info!("📄 Fetched timeline HTML, length: {} bytes", html.len());
+
+        // Debug: Save HTML to file for inspection
+        if let Err(e) = std::fs::write("/tmp/github_profile_debug.html", &html) {
+            log::warn!("Failed to save debug HTML: {}", e);
+        } else {
+            log::info!("💾 Saved HTML to /tmp/github_profile_debug.html for inspection");
+        }
+
+        // Look for: Joined the <a href="/{org_login}">...</a> organization
+        // The link href will have the org login, not the display name
+        let org_link_pattern = format!("<a href=\"/{}\"", org_login);
+
+        log::info!("🔍 Searching for pattern: {}", org_link_pattern);
+
+        // Find all occurrences of links to this org
+        let mut search_pos = 0;
+        let mut matches_found = 0;
+
+        while let Some(link_idx) = html[search_pos..].find(&org_link_pattern) {
+            matches_found += 1;
+            let absolute_link_idx = search_pos + link_idx;
+
+            log::info!("📌 Found link #{} at position {}", matches_found, absolute_link_idx);
+
+            // Look backwards from the link to see if "Joined the" appears nearby (within 100 chars)
+            let search_start = absolute_link_idx.saturating_sub(100);
+            let before_link = &html[search_start..absolute_link_idx];
+
+            if before_link.contains("Joined the") {
+                log::info!("✓ Found 'Joined the' before link #{}", matches_found);
+
+                // Found a "Joined the org" event! Now look for the date
+                // The structure is: Joined the <a href="/ORG">...</a> organization</h4>
+                //                   <a ... href="/ORG"><time>on Dec 14</time></a>
+                // Look forward from the link for <time> tag (within 1000 chars to account for whitespace and nested tags)
+                let search_end = (absolute_link_idx + 1000).min(html.len());
+                let after_link = &html[absolute_link_idx..search_end];
+
+                // Look for <time> tag (it might be nested in another <a> tag)
+                if let Some(time_start) = after_link.find("<time>") {
+                    log::info!("✓ Found <time> tag at offset {}", time_start);
+                    let content_start = time_start + 6; // Length of "<time>"
+                    if let Some(time_end) = after_link[content_start..].find("</time>") {
+                        let time_content = &after_link[content_start..content_start + time_end];
+
+                        log::info!("📅 Time content: '{}'", time_content);
+
+                        // Parse date like "on Dec 14" or "Dec 14"
+                        let date_str = time_content.trim().trim_start_matches("on").trim();
+
+                        log::info!("📅 Parsed date string: '{}'", date_str);
+
+                        // Parse date (format: "Dec 14", "Jan 5", etc.)
+                        if let Some(parsed_date) = self.parse_github_date(date_str) {
+                            log::info!("✅ Scraped org join date: {}", parsed_date);
+                            return Ok(Some(parsed_date));
+                        } else {
+                            log::warn!("⚠️  Failed to parse date: '{}'", date_str);
+                        }
+                    }
+                } else {
+                    log::info!("✗ No <time> tag found after link #{}", matches_found);
+                    // Debug: show what's actually there
+                    let preview_len = 200.min(after_link.len());
+                    log::info!("📝 Content after link: {}", &after_link[..preview_len]);
+                }
+
+                // Also try looking backwards for a <time datetime="..."> tag
+                let before_section = &html[search_start..absolute_link_idx + 200];
+                if let Some(time_start) = before_section.rfind("<time datetime=\"") {
+                    let datetime_start = time_start + 16;
+                    if let Some(datetime_end) = before_section[datetime_start..].find("\"") {
+                        let datetime_str = &before_section[datetime_start..datetime_start + datetime_end];
+
+                        if let Ok(parsed_date) = chrono::DateTime::parse_from_rfc3339(datetime_str) {
+                            let join_date = parsed_date.naive_utc().date();
+                            log::info!("✅ Scraped org join date: {}", join_date);
+                            return Ok(Some(join_date));
+                        } else if let Ok(naive_date) = chrono::NaiveDate::parse_from_str(datetime_str, "%Y-%m-%d") {
+                            log::info!("✅ Scraped org join date: {}", naive_date);
+                            return Ok(Some(naive_date));
+                        }
+                    }
+                }
+            } else {
+                log::info!("✗ No 'Joined the' found before link #{}", matches_found);
+            }
+
+            search_pos = absolute_link_idx + 1;
+        }
+
+        log::warn!("⚠️  Could not find org join date in scraped HTML (found {} link occurrences)", matches_found);
+        Ok(None)
+    }
+
+    /// Parse GitHub's abbreviated date format (e.g., "Dec 14", "Jan 5")
+    /// Returns the date assuming it's from this year or last year
+    fn parse_github_date(&self, date_str: &str) -> Option<chrono::NaiveDate> {
+        // Date format: "Dec 14", "Jan 5", etc.
+        let parts: Vec<&str> = date_str.split_whitespace().collect();
+        if parts.len() != 2 {
+            return None;
+        }
+
+        let month_str = parts[0];
+        let day_str = parts[1];
+
+        let day: u32 = day_str.parse().ok()?;
+
+        // Map month abbreviations to numbers
+        let month = match month_str {
+            "Jan" => 1, "Feb" => 2, "Mar" => 3, "Apr" => 4,
+            "May" => 5, "Jun" => 6, "Jul" => 7, "Aug" => 8,
+            "Sep" => 9, "Oct" => 10, "Nov" => 11, "Dec" => 12,
+            _ => return None,
+        };
+
+        // Determine the year - assume current year, but if the date is in the future, use last year
+        let now = chrono::Utc::now();
+        let current_year = now.year();
+
+        // Try current year first
+        if let Some(date) = chrono::NaiveDate::from_ymd_opt(current_year, month, day) {
+            // If this date is in the future, it must be from last year
+            if date > now.naive_utc().date() {
+                return chrono::NaiveDate::from_ymd_opt(current_year - 1, month, day);
+            }
+            return Some(date);
+        }
+
+        None
     }
 
     /// Fetch PR and issue activities using GraphQL search (no time limit)

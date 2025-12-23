@@ -200,18 +200,104 @@ impl ActivityAggregationService {
 
         log::info!("Fetched {} PR/issue activities from GraphQL", pr_issue_activities.len());
 
+        // Fetch organization memberships and detect new joins (GitHub only)
+        log::info!("Fetching organization memberships...");
+        let organization_activities = match account.platform_type {
+            git_platform_account::GitPlatform::GitHub => {
+                let github_client = GitHubClient::new();
+
+                // Fetch current public organizations
+                let current_orgs = github_client
+                    .fetch_user_organizations(&config, &account.platform_username, &token)
+                    .await
+                    .unwrap_or_else(|e| {
+                        log::warn!("Failed to fetch organizations: {}", e);
+                        Vec::new()
+                    });
+
+                // Delete ALL existing organization join activities for this account
+                // We'll recreate them with correct dates from scraping/events
+                let deleted = crate::models::activity::Entity::delete_many()
+                    .filter(crate::models::activity::Column::GitPlatformAccountId.eq(account.id))
+                    .filter(crate::models::activity::Column::ActivityType.eq(DbActivityType::OrganizationJoined))
+                    .exec(&self.db)
+                    .await
+                    .unwrap_or_else(|e| {
+                        log::warn!("Failed to delete existing org activities: {}", e);
+                        sea_orm::DeleteResult { rows_affected: 0 }
+                    });
+
+                log::info!("🗑️  Deleted {} existing organization join activities (will recreate with correct dates)",
+                    deleted.rows_affected);
+
+                log::info!("Found {} current organizations", current_orgs.len());
+
+                // Create activities for ALL current organizations with correct dates
+                let mut new_org_activities = Vec::new();
+                let today = chrono::Utc::now().naive_utc().date();
+
+                for (org_name, avatar_url) in current_orgs {
+                    // Try to find the join date using web scraping first (most accurate)
+                    let mut join_date_opt = github_client
+                        .scrape_org_join_date(&account.platform_username, &org_name)
+                        .await
+                        .ok()
+                        .flatten();
+
+                    // If scraping failed, try finding earliest activity as fallback
+                    if join_date_opt.is_none() {
+                        log::info!("Scraping failed, trying event API for org {}", org_name);
+                        join_date_opt = github_client
+                            .find_earliest_org_activity_date(&config, &account.platform_username, &org_name)
+                            .await
+                            .ok()
+                            .flatten();
+                    }
+
+                    let join_date = join_date_opt.unwrap_or_else(|| {
+                        log::warn!("⚠️  No join date found for org {}, using current date", org_name);
+                        today
+                    });
+
+                    log::info!("📅 Creating org join activity: {} on {}", org_name, join_date);
+
+                    new_org_activities.push(Activity {
+                        activity_type: ActivityType::OrganizationJoined,
+                        date: join_date,
+                        metadata: serde_json::json!({
+                            "organization": org_name,
+                            "avatar_url": avatar_url,
+                            "joined_at": join_date.format("%Y-%m-%d").to_string(),
+                        }),
+                        repository_name: None,
+                        repository_url: None,
+                        is_private: false,
+                        count: 1,
+                        primary_language: None,
+                        organization_name: Some(org_name.clone()),
+                        organization_avatar_url: Some(avatar_url),
+                    });
+                }
+
+                log::info!("Created {} organization join activities with scraped dates", new_org_activities.len());
+                new_org_activities
+            }
+            _ => Vec::new(), // Other platforms not yet supported
+        };
+
         // Fetch remaining activity types from Events API (forks, stars, etc.)
         let events_activities = platform_client
             .fetch_activities(&config, &account.platform_username, &token, from, to)
             .await?;
 
-        // Filter out commits, repos, PRs, and issues from Events API (we have GraphQL data for these)
+        // Filter out commits, repos, PRs, issues, and org joins from Events API (we have GraphQL data for these)
         let mut activities: Vec<_> = events_activities.into_iter()
             .filter(|a| {
                 a.activity_type != ActivityType::Commit
                 && a.activity_type != ActivityType::RepositoryCreated
                 && a.activity_type != ActivityType::PullRequest
                 && a.activity_type != ActivityType::Issue
+                && a.activity_type != ActivityType::OrganizationJoined
             })
             .collect();
 
@@ -221,6 +307,7 @@ impl ActivityAggregationService {
         activities.extend(commit_activities);
         activities.extend(repo_creation_activities);
         activities.extend(pr_issue_activities);
+        activities.extend(organization_activities);
 
         log::info!("Total activities to store: {}", activities.len());
 
