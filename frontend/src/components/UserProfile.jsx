@@ -72,31 +72,26 @@ const UserProfile = () => {
     <div className="user-profile">
       {/* Overall Stats Section */}
       {stats && (
-        <div className="profile-stats-overview">
-          <div className="stat-item">
-            <span className="stat-icon">📊</span>
-            <span className="stat-label">
-              <strong>{stats.total_count?.toLocaleString() || 0}</strong> contributions
-            </span>
+        <div className="heatmap-stats">
+          <div className="stat-card">
+            <div className="stat-label">Total</div>
+            <div className="stat-value">{stats.total_contributions?.toLocaleString() || 0} contributions</div>
           </div>
 
-          {stats.current_streak > 0 && (
-            <div className="stat-item">
-              <span className="stat-icon">🔥</span>
-              <span className="stat-label">
-                <strong>{stats.current_streak}</strong> day streak
-              </span>
-            </div>
-          )}
+          <div className="stat-card">
+            <div className="stat-label">Current streak</div>
+            <div className="stat-value">{stats.current_streak || 0} days</div>
+          </div>
 
-          {stats.longest_streak > 0 && (
-            <div className="stat-item">
-              <span className="stat-icon">🏆</span>
-              <span className="stat-label">
-                <strong>{stats.longest_streak}</strong> longest
-              </span>
-            </div>
-          )}
+          <div className="stat-card">
+            <div className="stat-label">Longest streak</div>
+            <div className="stat-value">{stats.longest_streak || 0} days</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-label">Platforms</div>
+            <div className="stat-value">{platforms.length} connected</div>
+          </div>
         </div>
       )}
 

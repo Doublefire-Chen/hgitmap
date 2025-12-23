@@ -9,34 +9,41 @@
 }
 
 /* Overall Stats Section */
-.profile-stats-overview {
+.heatmap-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
   padding-bottom: 16px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--color-border-muted);
 }
 
-.stat-item {
+.stat-card {
+  background: var(--color-canvas-subtle);
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  padding: 12px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 14px;
-  color: var(--color-fg-default);
-}
-
-.stat-icon {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .stat-label {
+  font-size: 12px;
   color: var(--color-fg-muted);
+  font-weight: 400;
 }
 
-.stat-label strong {
-  color: var(--color-fg-default);
+.stat-value {
+  font-size: 16px;
   font-weight: 600;
+  color: var(--color-fg-default);
+}
+
+@media (max-width: 640px) {
+  .heatmap-stats {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Platform Profiles Section */

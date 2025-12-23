@@ -322,28 +322,6 @@ function Heatmap() {
     <div className="heatmap-container">
       <div className="heatmap-layout">
         <div className="heatmap-main">
-          {/* Stats Section */}
-          {stats && (
-            <div className="heatmap-stats">
-              <div className="stat-card">
-                <div className="stat-label">Total</div>
-                <div className="stat-value">{stats.total_contributions.toLocaleString()} contributions</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Current streak</div>
-                <div className="stat-value">{stats.current_streak} days</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Longest streak</div>
-                <div className="stat-value">{stats.longest_streak} days</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Platforms</div>
-                <div className="stat-value">{stats.active_platforms} connected</div>
-              </div>
-            </div>
-          )}
-
           {/* Header */}
           <div className="heatmap-header">
             <h2>
