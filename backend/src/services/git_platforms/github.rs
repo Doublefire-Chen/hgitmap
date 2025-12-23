@@ -761,21 +761,17 @@ impl GitPlatform for GitHubClient {
     ) -> Result<Vec<Contribution>> {
         let client = create_http_client();
 
-        // GitHub GraphQL query for contributions by repository with per-day details
-        // Note: GitHub's API has a hard limit of 100 nodes for contributions connection
-        let query = r#"
+        // First, fetch the calendar for accurate total counts
+        let calendar_query = r#"
             query($username: String!, $from: DateTime!, $to: DateTime!) {
                 user(login: $username) {
                     contributionsCollection(from: $from, to: $to) {
-                        commitContributionsByRepository(maxRepositories: 100) {
-                            repository {
-                                nameWithOwner
-                                isPrivate
-                            }
-                            contributions(first: 100) {
-                                nodes {
-                                    occurredAt
-                                    commitCount
+                        contributionCalendar {
+                            totalContributions
+                            weeks {
+                                contributionDays {
+                                    date
+                                    contributionCount
                                 }
                             }
                         }
@@ -795,7 +791,7 @@ impl GitPlatform for GitHubClient {
             .header("Authorization", format!("Bearer {}", token))
             .header("User-Agent", "hgitmap/0.1.0")
             .json(&json!({
-                "query": query,
+                "query": calendar_query,
                 "variables": variables,
             }))
             .send()
@@ -811,41 +807,185 @@ impl GitPlatform for GitHubClient {
             ));
         }
 
-        let response_data: GitHubContributionsByRepoResponse = response.json().await?;
+        let calendar_response: GitHubContributionCalendarOnlyResponse = response.json().await?;
 
-        if let Some(errors) = response_data.errors {
+        if let Some(errors) = calendar_response.errors {
             return Err(anyhow!("GitHub GraphQL errors: {:?}", errors));
         }
 
-        let contribution_data = response_data
+        let calendar_data = calendar_response
             .data
             .ok_or_else(|| anyhow!("No data in GitHub response"))?;
 
-        let user_data = contribution_data
+        let calendar_user_data = calendar_data
             .user
             .ok_or_else(|| anyhow!("User not found"))?;
 
-        let repos_data = user_data.contributions_collection.commit_contributions_by_repository;
+        let calendar = calendar_user_data.contributions_collection.contribution_calendar;
 
-        log::info!("📊 GitHub returned contributions for {} repositories", repos_data.len());
+        log::info!("📊 GitHub contributionCalendar reports {} total contributions", calendar.total_contributions);
 
-        // Convert to our Contribution format
+        // Now fetch repository data with pagination to get complete privacy info
+        use std::collections::HashMap;
+        let mut date_privacy_map: HashMap<chrono::NaiveDate, (bool, Vec<String>)> = HashMap::new();
+
+        let mut cursor: Option<String> = None;
+        let mut page_num = 0;
+        let max_pages = 10; // Fetch up to 10 pages (1000 contribution days total)
+
+        loop {
+            page_num += 1;
+
+            let repo_query = if let Some(ref after_cursor) = cursor {
+                format!(r#"
+                    query($username: String!, $from: DateTime!, $to: DateTime!) {{
+                        user(login: $username) {{
+                            contributionsCollection(from: $from, to: $to) {{
+                                commitContributionsByRepository(maxRepositories: 100) {{
+                                    repository {{
+                                        nameWithOwner
+                                        isPrivate
+                                    }}
+                                    contributions(first: 100, after: "{}") {{
+                                        pageInfo {{
+                                            hasNextPage
+                                            endCursor
+                                        }}
+                                        nodes {{
+                                            occurredAt
+                                            commitCount
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }}
+                "#, after_cursor)
+            } else {
+                r#"
+                    query($username: String!, $from: DateTime!, $to: DateTime!) {
+                        user(login: $username) {
+                            contributionsCollection(from: $from, to: $to) {
+                                commitContributionsByRepository(maxRepositories: 100) {
+                                    repository {
+                                        nameWithOwner
+                                        isPrivate
+                                    }
+                                    contributions(first: 100) {
+                                        pageInfo {
+                                            hasNextPage
+                                            endCursor
+                                        }
+                                        nodes {
+                                            occurredAt
+                                            commitCount
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                "#.to_string()
+            };
+
+            let repo_response = client
+                .post(&format!("{}/graphql", config.api_base_url))
+                .header("Authorization", format!("Bearer {}", token))
+                .header("User-Agent", "hgitmap/0.1.0")
+                .json(&json!({
+                    "query": repo_query,
+                    "variables": variables,
+                }))
+                .send()
+                .await?;
+
+            if !repo_response.status().is_success() {
+                log::warn!("Failed to fetch repository data page {}: status {}", page_num, repo_response.status());
+                break;
+            }
+
+            let repo_data: GitHubRepoContributionResponse = repo_response.json().await?;
+
+            if let Some(errors) = repo_data.errors {
+                log::warn!("GraphQL errors on page {}: {:?}", page_num, errors);
+                break;
+            }
+
+            let Some(data) = repo_data.data else {
+                log::warn!("No data in page {}", page_num);
+                break;
+            };
+
+            let Some(user_data) = data.user else {
+                log::warn!("No user in page {}", page_num);
+                break;
+            };
+
+            let repos_data = user_data.contributions_collection.commit_contributions_by_repository;
+            let mut has_next_page = false;
+            let mut next_cursor: Option<String> = None;
+
+            log::info!("📄 Processing page {} with {} repositories", page_num, repos_data.len());
+
+            for repo_contribution in repos_data {
+                let repo_name = repo_contribution.repository.name_with_owner;
+                let is_private = repo_contribution.repository.is_private;
+
+                // Check if there are more pages for this repository
+                if let Some(ref page_info) = repo_contribution.contributions.page_info {
+                    if page_info.has_next_page {
+                        has_next_page = true;
+                        next_cursor = page_info.end_cursor.clone();
+                    }
+                }
+
+                for node in repo_contribution.contributions.nodes {
+                    if node.commit_count > 0 {
+                        let occurred_at = chrono::DateTime::parse_from_rfc3339(&node.occurred_at)
+                            .map_err(|e| anyhow!("Failed to parse date: {}", e))?;
+                        let date = occurred_at.naive_utc().date();
+
+                        let entry = date_privacy_map.entry(date).or_insert((false, Vec::new()));
+                        // If ANY repo on this date is private, mark the whole day as private
+                        if is_private {
+                            entry.0 = true;
+                        }
+                        if !entry.1.contains(&repo_name) {
+                            entry.1.push(repo_name.clone());
+                        }
+                    }
+                }
+            }
+
+            // Stop if no more pages or reached max pages
+            if !has_next_page || page_num >= max_pages {
+                log::info!("📊 Finished fetching repository data after {} pages", page_num);
+                break;
+            }
+
+            cursor = next_cursor;
+        }
+
+        log::info!("📊 Mapped privacy info for {} days from {} pages of repository data",
+            date_privacy_map.len(), page_num);
+
+        // Convert calendar data to our Contribution format, enriched with privacy info
         let mut contributions = Vec::new();
-        for repo_contribution in repos_data {
-            let repo_name = repo_contribution.repository.name_with_owner;
-            let is_private = repo_contribution.repository.is_private;
-
-            for node in repo_contribution.contributions.nodes {
-                if node.commit_count > 0 {
-                    // Parse the occurredAt datetime and extract just the date
-                    let occurred_at = chrono::DateTime::parse_from_rfc3339(&node.occurred_at)
+        for week in calendar.weeks {
+            for day in week.contribution_days {
+                if day.contribution_count > 0 {
+                    let date = chrono::NaiveDate::parse_from_str(&day.date, "%Y-%m-%d")
                         .map_err(|e| anyhow!("Failed to parse date: {}", e))?;
-                    let date = occurred_at.naive_utc().date();
+
+                    // Check if we have privacy info for this date
+                    let (is_private, repo_names) = date_privacy_map.get(&date)
+                        .map(|(priv_flag, repos)| (*priv_flag, Some(repos.join(", "))))
+                        .unwrap_or((false, None)); // Default to public if no repo data available
 
                     contributions.push(Contribution {
                         date,
-                        count: node.commit_count,
-                        repository_name: Some(repo_name.clone()),
+                        count: day.contribution_count,
+                        repository_name: repo_names,
                         is_private,
                         contribution_type: ContributionType::Commit,
                     });
@@ -854,7 +994,8 @@ impl GitPlatform for GitHubClient {
         }
 
         let total: i32 = contributions.iter().map(|c| c.count).sum();
-        log::info!("📊 Collected {} contributions from {} days across repositories", total, contributions.len());
+        log::info!("📊 Collected {} contributions across {} days (calendar total: {})",
+            total, contributions.len(), calendar.total_contributions);
 
         Ok(contributions)
     }
@@ -1192,41 +1333,80 @@ impl GitPlatform for GitHubClient {
 
 // GitHub API response types
 
-// New response types for commitContributionsByRepository query
+// Calendar-only response (first request)
 #[derive(Debug, Deserialize)]
-struct GitHubContributionsByRepoResponse {
-    data: Option<GitHubContributionsByRepoData>,
+struct GitHubContributionCalendarOnlyResponse {
+    data: Option<GitHubContributionCalendarOnlyData>,
     errors: Option<Vec<GitHubGraphQLError>>,
 }
 
 #[derive(Debug, Deserialize)]
-struct GitHubGraphQLError {
-    #[allow(dead_code)]
-    message: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubContributionsByRepoData {
-    user: Option<GitHubContributionsByRepoUserData>,
+struct GitHubContributionCalendarOnlyData {
+    user: Option<GitHubContributionCalendarOnlyUserData>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct GitHubContributionsByRepoUserData {
-    contributions_collection: GitHubContributionsByRepoCollection,
+struct GitHubContributionCalendarOnlyUserData {
+    contributions_collection: GitHubContributionCalendarOnlyCollection,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct GitHubContributionsByRepoCollection {
+struct GitHubContributionCalendarOnlyCollection {
+    contribution_calendar: GitHubContributionCalendar,
+}
+
+// Repository contribution response (paginated requests)
+#[derive(Debug, Deserialize)]
+struct GitHubRepoContributionResponse {
+    data: Option<GitHubRepoContributionData>,
+    errors: Option<Vec<GitHubGraphQLError>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubRepoContributionData {
+    user: Option<GitHubRepoContributionUserData>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitHubRepoContributionUserData {
+    contributions_collection: GitHubRepoContributionCollection,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitHubRepoContributionCollection {
     commit_contributions_by_repository: Vec<GitHubRepoContribution>,
+}
+
+// Shared structs
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitHubContributionCalendar {
+    total_contributions: i32,
+    weeks: Vec<GitHubContributionWeek>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitHubContributionWeek {
+    contribution_days: Vec<GitHubContributionDay>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitHubContributionDay {
+    date: String,
+    contribution_count: i32,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GitHubRepoContribution {
     repository: GitHubRepositoryInfo,
-    contributions: GitHubContributionNodes,
+    contributions: GitHubContributionNodesWithPageInfo,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1237,8 +1417,17 @@ struct GitHubRepositoryInfo {
 }
 
 #[derive(Debug, Deserialize)]
-struct GitHubContributionNodes {
+#[serde(rename_all = "camelCase")]
+struct GitHubContributionNodesWithPageInfo {
+    page_info: Option<GitHubPageInfo>,
     nodes: Vec<GitHubContributionNode>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GitHubPageInfo {
+    has_next_page: bool,
+    end_cursor: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1248,6 +1437,11 @@ struct GitHubContributionNode {
     commit_count: i32,
 }
 
+#[derive(Debug, Deserialize)]
+struct GitHubGraphQLError {
+    #[allow(dead_code)]
+    message: String,
+}
 
 #[derive(Debug, Deserialize)]
 struct GitHubUser {
