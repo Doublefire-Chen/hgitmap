@@ -52,6 +52,12 @@ const Home = () => {
           >
             Platforms
           </button>
+          <button
+            className={`tab ${activeTab === 'themes' ? 'active' : ''}`}
+            onClick={() => navigate('/heatmap/themes')}
+          >
+            Themes
+          </button>
         </div>
       </header>
 

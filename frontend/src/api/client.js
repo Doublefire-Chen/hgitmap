@@ -78,6 +78,12 @@ class ApiClient {
       return new Promise(() => {});
     }
 
+    // Handle 204 No Content responses (like DELETE)
+    if (response.status === 204) {
+      console.log(`✅ [API] Request successful (No Content)`);
+      return null;
+    }
+
     const data = await response.json();
     console.log(`📦 [API] Response data:`, data);
 
@@ -217,6 +223,99 @@ class ApiClient {
   async deleteOAuthApp(appId) {
     return this.fetchWithAuth(`/admin/oauth-apps/${appId}`, {
       method: 'DELETE',
+    });
+  }
+
+  // Heatmap Themes
+  async listThemes() {
+    return this.fetchWithAuth('/heatmap/themes');
+  }
+
+  async getTheme(slug) {
+    return this.fetchWithAuth(`/heatmap/themes/${slug}`);
+  }
+
+  async createTheme(themeData) {
+    return this.fetchWithAuth('/heatmap/themes', {
+      method: 'POST',
+      body: JSON.stringify(themeData),
+    });
+  }
+
+  async updateTheme(slug, themeData) {
+    return this.fetchWithAuth(`/heatmap/themes/${slug}`, {
+      method: 'PUT',
+      body: JSON.stringify(themeData),
+    });
+  }
+
+  async deleteTheme(slug) {
+    return this.fetchWithAuth(`/heatmap/themes/${slug}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async setDefaultTheme(slug) {
+    return this.fetchWithAuth(`/heatmap/themes/${slug}/set-default`, {
+      method: 'POST',
+    });
+  }
+
+  async duplicateTheme(slug, newName, newSlug) {
+    return this.fetchWithAuth(`/heatmap/themes/${slug}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ new_name: newName, new_slug: newSlug }),
+    });
+  }
+
+  // Heatmap Generation Settings
+  async getGenerationSettings() {
+    return this.fetchWithAuth('/heatmap/settings');
+  }
+
+  async updateGenerationSettings(settings) {
+    return this.fetchWithAuth('/heatmap/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  // Heatmap Generation
+  async triggerGeneration() {
+    return this.fetchWithAuth('/heatmap/generate', {
+      method: 'POST',
+    });
+  }
+
+  async triggerThemeGeneration(themeSlug) {
+    return this.fetchWithAuth(`/heatmap/generate/${themeSlug}`, {
+      method: 'POST',
+    });
+  }
+
+  async listGeneratedHeatmaps() {
+    return this.fetchWithAuth('/heatmap/generated');
+  }
+
+  async listGenerationJobs(status = null, limit = 50) {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('limit', limit.toString());
+
+    const queryString = params.toString();
+    return this.fetchWithAuth(`/heatmap/jobs?${queryString}`);
+  }
+
+  // Get heatmap embed URL
+  getHeatmapEmbedUrl(username, themeSlug, format = 'png') {
+    return `${API_BASE_URL}/embed/${username}/${themeSlug}.${format}`;
+  }
+
+  // Preview theme with parameters
+  async previewTheme(themeData) {
+    return this.fetchWithAuth('/heatmap/preview', {
+      method: 'POST',
+      body: JSON.stringify(themeData),
     });
   }
 }

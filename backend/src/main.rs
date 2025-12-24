@@ -38,6 +38,10 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Database connection established");
 
+    // Start background job processor for heatmap generation
+    log::info!("Starting heatmap generation job processor");
+    services::job_processor::start_job_processor(db.clone());
+
     // Start HTTP server
     println!("🌐 Starting HTTP server at http://{}:{}", host, port);
     println!("📍 Available endpoints:");
@@ -113,6 +117,39 @@ async fn main() -> std::io::Result<()> {
                     .wrap(crate::middleware::auth::JwtMiddleware)
                     .route("", web::get().to(handlers::settings::get_settings))
                     .route("", web::put().to(handlers::settings::update_settings))
+            )
+            // Heatmap theme and generation endpoints
+            .service(
+                web::scope("/heatmap")
+                    .wrap(crate::middleware::auth::JwtMiddleware)
+                    // Theme management
+                    .route("/themes", web::get().to(handlers::heatmap_themes::list_themes))
+                    .route("/themes", web::post().to(handlers::heatmap_themes::create_theme))
+                    .route("/themes/{slug}", web::get().to(handlers::heatmap_themes::get_theme))
+                    .route("/themes/{slug}", web::put().to(handlers::heatmap_themes::update_theme))
+                    .route("/themes/{slug}", web::delete().to(handlers::heatmap_themes::delete_theme))
+                    .route("/themes/{slug}/set-default", web::post().to(handlers::heatmap_themes::set_default_theme))
+                    .route("/themes/{slug}/duplicate", web::post().to(handlers::heatmap_themes::duplicate_theme))
+                    // Generation settings
+                    .route("/settings", web::get().to(handlers::heatmap_generation::get_generation_settings))
+                    .route("/settings", web::put().to(handlers::heatmap_generation::update_generation_settings))
+                    // Manual generation triggers
+                    .route("/generate", web::post().to(handlers::heatmap_generation::trigger_generation))
+                    .route("/generate/{slug}", web::post().to(handlers::heatmap_generation::trigger_theme_generation))
+                    // View generated heatmaps and jobs
+                    .route("/generated", web::get().to(handlers::heatmap_generation::list_generated_heatmaps))
+                    .route("/jobs", web::get().to(handlers::heatmap_generation::list_generation_jobs))
+                    // Preview theme (POST with theme parameters)
+                    .route("/preview", web::post().to(handlers::heatmap_generation::preview_theme))
+            )
+            // Public static file endpoints (no authentication required)
+            .service(
+                web::scope("/static/heatmaps")
+                    .route("/{user_id}/{filename}", web::get().to(handlers::static_files::serve_heatmap))
+            )
+            .service(
+                web::scope("/embed")
+                    .route("/{username}/{theme_file}", web::get().to(handlers::static_files::serve_embed))
             )
             // Admin endpoints (JWT + admin check required)
             .service(

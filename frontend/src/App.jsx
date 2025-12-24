@@ -8,6 +8,9 @@ import Home from './pages/Home';
 import OAuthCallback from './pages/OAuthCallback';
 import Settings from './pages/Settings';
 import AdminOAuthApps from './pages/AdminOAuthApps';
+import HeatmapThemes from './pages/HeatmapThemes';
+import ThemeEditor from './pages/ThemeEditor';
+import GenerationSettings from './pages/GenerationSettings';
 
 function App() {
   return (
@@ -38,6 +41,38 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminOAuthApps />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/heatmap/themes"
+              element={
+                <ProtectedRoute>
+                  <HeatmapThemes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/heatmap/themes/new"
+              element={
+                <ProtectedRoute>
+                  <ThemeEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/heatmap/themes/:slug/edit"
+              element={
+                <ProtectedRoute>
+                  <ThemeEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/heatmap/settings"
+              element={
+                <ProtectedRoute>
+                  <GenerationSettings />
                 </ProtectedRoute>
               }
             />

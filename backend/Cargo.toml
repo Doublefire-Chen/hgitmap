@@ -7,6 +7,7 @@ edition = "2021"
 # Web framework
 actix-web = "4.4"
 actix-cors = "0.7"
+actix-files = "0.6"
 
 # Async runtime and utilities
 tokio = { version = "1.35", features = ["full"] }
@@ -57,3 +58,14 @@ async-trait = "0.1"
 # Image generation for heatmap
 image = "0.24"
 imageproc = "0.23"
+resvg = "0.37"
+tiny-skia = "0.11"
+usvg = "0.37"
+rusttype = "0.9"
+
+# File system and hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# Random number generation for preview
+rand = "0.8"

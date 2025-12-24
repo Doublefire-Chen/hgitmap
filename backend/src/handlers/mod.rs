@@ -5,3 +5,6 @@ pub mod contributions;
 pub mod settings;
 pub mod oauth_apps;
 pub mod activities;
+pub mod heatmap_themes;
+pub mod heatmap_generation;
+pub mod static_files;
