@@ -33,10 +33,16 @@ pub struct HeatmapThemeResponse {
     pub padding_right: i32,
     pub padding_bottom: i32,
     pub padding_left: i32,
+    pub day_label_width: i32,
+    pub month_label_height: i32,
+    pub title_height: i32,
+    pub legend_height: i32,
     pub show_month_labels: bool,
     pub show_day_labels: bool,
     pub show_legend: bool,
     pub show_total_count: bool,
+    pub show_username: bool,
+    pub show_watermark: bool,
     pub font_family: String,
     pub font_size: i32,
     pub legend_position: String,
@@ -85,10 +91,16 @@ impl From<heatmap_theme::Model> for HeatmapThemeResponse {
             padding_right: model.padding_right,
             padding_bottom: model.padding_bottom,
             padding_left: model.padding_left,
+            day_label_width: model.day_label_width,
+            month_label_height: model.month_label_height,
+            title_height: model.title_height,
+            legend_height: model.legend_height,
             show_month_labels: model.show_month_labels,
             show_day_labels: model.show_day_labels,
             show_legend: model.show_legend,
             show_total_count: model.show_total_count,
+            show_username: model.show_username,
+            show_watermark: model.show_watermark,
             font_family: model.font_family,
             font_size: model.font_size,
             legend_position: model.legend_position,
@@ -131,10 +143,16 @@ pub struct CreateThemeRequest {
     pub padding_right: Option<i32>,
     pub padding_bottom: Option<i32>,
     pub padding_left: Option<i32>,
+    pub day_label_width: Option<i32>,
+    pub month_label_height: Option<i32>,
+    pub title_height: Option<i32>,
+    pub legend_height: Option<i32>,
     pub show_month_labels: Option<bool>,
     pub show_day_labels: Option<bool>,
     pub show_legend: Option<bool>,
     pub show_total_count: Option<bool>,
+    pub show_username: Option<bool>,
+    pub show_watermark: Option<bool>,
     pub font_family: Option<String>,
     pub font_size: Option<i32>,
     pub legend_position: Option<String>,
@@ -178,10 +196,16 @@ pub struct UpdateThemeRequest {
     pub padding_right: Option<i32>,
     pub padding_bottom: Option<i32>,
     pub padding_left: Option<i32>,
+    pub day_label_width: Option<i32>,
+    pub month_label_height: Option<i32>,
+    pub title_height: Option<i32>,
+    pub legend_height: Option<i32>,
     pub show_month_labels: Option<bool>,
     pub show_day_labels: Option<bool>,
     pub show_legend: Option<bool>,
     pub show_total_count: Option<bool>,
+    pub show_username: Option<bool>,
+    pub show_watermark: Option<bool>,
     pub font_family: Option<String>,
     pub font_size: Option<i32>,
     pub legend_position: Option<String>,
@@ -333,12 +357,18 @@ pub async fn create_theme(
         heatmap_height: Set(payload.heatmap_height),
         padding_top: Set(payload.padding_top.unwrap_or(20)),
         padding_right: Set(payload.padding_right.unwrap_or(20)),
-        padding_bottom: Set(payload.padding_bottom.unwrap_or(20)),
+        padding_bottom: Set(payload.padding_bottom.unwrap_or(17)),
         padding_left: Set(payload.padding_left.unwrap_or(20)),
+        day_label_width: Set(payload.day_label_width.unwrap_or(28)),
+        month_label_height: Set(payload.month_label_height.unwrap_or(15)),
+        title_height: Set(payload.title_height.unwrap_or(30)),
+        legend_height: Set(payload.legend_height.unwrap_or(8)),
         show_month_labels: Set(payload.show_month_labels.unwrap_or(true)),
         show_day_labels: Set(payload.show_day_labels.unwrap_or(true)),
         show_legend: Set(payload.show_legend.unwrap_or(true)),
-        show_total_count: Set(payload.show_total_count.unwrap_or(false)),
+        show_total_count: Set(payload.show_total_count.unwrap_or(true)),
+        show_username: Set(payload.show_username.unwrap_or(true)),
+        show_watermark: Set(payload.show_watermark.unwrap_or(true)),
         font_family: Set(payload.font_family.clone().unwrap_or_else(|| "sans-serif".to_string())),
         font_size: Set(payload.font_size.unwrap_or(10)),
         legend_position: Set(payload.legend_position.clone().unwrap_or_else(|| "bottom".to_string())),
@@ -468,11 +498,17 @@ pub async fn update_theme(
     update_field!(padding_right, val);
     update_field!(padding_bottom, val);
     update_field!(padding_left, val);
+    update_field!(day_label_width, val);
+    update_field!(month_label_height, val);
+    update_field!(title_height, val);
+    update_field!(legend_height, val);
     update_field!(font_size, val);
     update_field!(show_month_labels, bool);
     update_field!(show_day_labels, bool);
     update_field!(show_legend, bool);
     update_field!(show_total_count, bool);
+    update_field!(show_username, bool);
+    update_field!(show_watermark, bool);
 
     if let Some(ref formats) = payload.output_formats {
         let parsed_formats = parse_output_formats(formats)?;
@@ -680,10 +716,16 @@ pub async fn duplicate_theme(
         padding_right: Set(source_theme.padding_right),
         padding_bottom: Set(source_theme.padding_bottom),
         padding_left: Set(source_theme.padding_left),
+        day_label_width: Set(source_theme.day_label_width),
+        month_label_height: Set(source_theme.month_label_height),
+        title_height: Set(source_theme.title_height),
+        legend_height: Set(source_theme.legend_height),
         show_month_labels: Set(source_theme.show_month_labels),
         show_day_labels: Set(source_theme.show_day_labels),
         show_legend: Set(source_theme.show_legend),
         show_total_count: Set(source_theme.show_total_count),
+        show_username: Set(source_theme.show_username),
+        show_watermark: Set(source_theme.show_watermark),
         font_family: Set(source_theme.font_family.clone()),
         font_size: Set(source_theme.font_size),
         legend_position: Set(source_theme.legend_position.clone()),

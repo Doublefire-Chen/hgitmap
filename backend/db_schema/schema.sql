@@ -300,14 +300,22 @@ CREATE TABLE heatmap_themes (
     -- Padding around the heatmap
     padding_top INTEGER DEFAULT 20,
     padding_right INTEGER DEFAULT 20,
-    padding_bottom INTEGER DEFAULT 20,
+    padding_bottom INTEGER DEFAULT 17,
     padding_left INTEGER DEFAULT 20,
+
+    -- Layout spacing settings (customize spacing for various UI elements)
+    day_label_width INTEGER DEFAULT 28, -- Width reserved for day labels (Mon, Wed, Fri)
+    month_label_height INTEGER DEFAULT 15, -- Height reserved for month labels
+    title_height INTEGER DEFAULT 30, -- Height reserved for title/header area
+    legend_height INTEGER DEFAULT 8, -- Height reserved for legend area
 
     -- Display options
     show_month_labels BOOLEAN DEFAULT true,
     show_day_labels BOOLEAN DEFAULT true,
     show_legend BOOLEAN DEFAULT true,
     show_total_count BOOLEAN DEFAULT true, -- Show total contribution count
+    show_username BOOLEAN DEFAULT true, -- Show username at top
+    show_watermark BOOLEAN DEFAULT true, -- Show "Powered by Hgitmap" watermark
 
     -- Font settings
     font_family VARCHAR(255) DEFAULT 'sans-serif',
@@ -490,10 +498,16 @@ BEGIN
         padding_right,
         padding_bottom,
         padding_left,
+        day_label_width,
+        month_label_height,
+        title_height,
+        legend_height,
         show_month_labels,
         show_day_labels,
         show_legend,
         show_total_count,
+        show_username,
+        show_watermark,
         font_family,
         font_size,
         output_formats
@@ -517,12 +531,18 @@ BEGIN
         '#e1e4e8',
         20,
         20,
-        20,
+        10,
         28,
+        28,
+        15,
+        30,
+        8,
         true,
         true,
         true,
         true,
+        false,
+        false,
         'sans-serif',
         10,
         ARRAY['png', 'svg']::heatmap_format[]
@@ -551,10 +571,16 @@ BEGIN
         padding_right,
         padding_bottom,
         padding_left,
+        day_label_width,
+        month_label_height,
+        title_height,
+        legend_height,
         show_month_labels,
         show_day_labels,
         show_legend,
         show_total_count,
+        show_username,
+        show_watermark,
         font_family,
         font_size,
         output_formats
@@ -578,12 +604,18 @@ BEGIN
         '#30363d',
         20,
         20,
-        20,
+        10,
         28,
+        28,
+        15,
+        30,
+        8,
         true,
         true,
         true,
         true,
+        false,
+        false,
         'sans-serif',
         10,
         ARRAY['png', 'svg']::heatmap_format[]

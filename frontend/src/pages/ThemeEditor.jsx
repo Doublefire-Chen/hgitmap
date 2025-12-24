@@ -42,14 +42,22 @@ function ThemeEditor() {
     heatmap_height: null,
     padding_top: 20,
     padding_right: 20,
-    padding_bottom: 20,
+    padding_bottom: 17,
     padding_left: 20,
+
+    // Layout spacing
+    day_label_width: 28,
+    month_label_height: 15,
+    title_height: 30,
+    legend_height: 8,
 
     // Display options
     show_month_labels: true,
     show_day_labels: true,
     show_legend: true,
     show_total_count: true,
+    show_username: true,
+    show_watermark: true,
 
     // Font
     font_family: 'sans-serif',
@@ -94,10 +102,16 @@ function ThemeEditor() {
         padding_right: theme.padding_right,
         padding_bottom: theme.padding_bottom,
         padding_left: theme.padding_left,
+        day_label_width: theme.day_label_width,
+        month_label_height: theme.month_label_height,
+        title_height: theme.title_height,
+        legend_height: theme.legend_height,
         show_month_labels: theme.show_month_labels,
         show_day_labels: theme.show_day_labels,
         show_legend: theme.show_legend,
         show_total_count: theme.show_total_count,
+        show_username: theme.show_username || false,
+        show_watermark: theme.show_watermark || false,
         font_family: theme.font_family,
         font_size: theme.font_size,
         legend_position: theme.legend_position,
@@ -508,6 +522,64 @@ function ThemeEditor() {
           </div>
         </section>
 
+        {/* Layout Spacing */}
+        <section className="form-section">
+          <h2>Layout Spacing</h2>
+          <p className="hint-text">
+            Customize spacing for various UI elements in the heatmap.
+          </p>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Day Label Width (px)</label>
+              <input
+                type="number"
+                value={formData.day_label_width}
+                onChange={(e) => handleNumberChange('day_label_width', e.target.value)}
+                min="0"
+                max="100"
+              />
+              <p className="hint-text">Width for day labels (Mon, Wed, Fri)</p>
+            </div>
+
+            <div className="form-group">
+              <label>Month Label Height (px)</label>
+              <input
+                type="number"
+                value={formData.month_label_height}
+                onChange={(e) => handleNumberChange('month_label_height', e.target.value)}
+                min="0"
+                max="50"
+              />
+              <p className="hint-text">Height for month labels</p>
+            </div>
+
+            <div className="form-group">
+              <label>Title Height (px)</label>
+              <input
+                type="number"
+                value={formData.title_height}
+                onChange={(e) => handleNumberChange('title_height', e.target.value)}
+                min="0"
+                max="100"
+              />
+              <p className="hint-text">Height for title/header area</p>
+            </div>
+
+            <div className="form-group">
+              <label>Legend Height (px)</label>
+              <input
+                type="number"
+                value={formData.legend_height}
+                onChange={(e) => handleNumberChange('legend_height', e.target.value)}
+                min="0"
+                max="50"
+              />
+              <p className="hint-text">Height for legend area</p>
+            </div>
+          </div>
+        </section>
+
         {/* Display Options */}
         <section className="form-section">
           <h2>Display Options</h2>
@@ -547,6 +619,24 @@ function ThemeEditor() {
                 onChange={(e) => handleChange('show_total_count', e.target.checked)}
               />
               <span>Show Total Count</span>
+            </label>
+
+            <label className="checkbox-option">
+              <input
+                type="checkbox"
+                checked={formData.show_username}
+                onChange={(e) => handleChange('show_username', e.target.checked)}
+              />
+              <span>Show Username</span>
+            </label>
+
+            <label className="checkbox-option">
+              <input
+                type="checkbox"
+                checked={formData.show_watermark}
+                onChange={(e) => handleChange('show_watermark', e.target.checked)}
+              />
+              <span>Show Watermark</span>
             </label>
           </div>
 

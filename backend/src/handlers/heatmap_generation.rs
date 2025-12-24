@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::models::{heatmap_generation_setting, heatmap_generation_job, generated_heatmap, heatmap_theme};
+use crate::models::{heatmap_generation_setting, heatmap_generation_job, generated_heatmap, heatmap_theme, user};
 use crate::services::heatmap_generator::HeatmapGenerator;
 
 // ============ Request/Response DTOs ============
@@ -481,12 +481,18 @@ pub async fn preview_theme(
         heatmap_height: payload.heatmap_height,
         padding_top: payload.padding_top.unwrap_or(20),
         padding_right: payload.padding_right.unwrap_or(20),
-        padding_bottom: payload.padding_bottom.unwrap_or(20),
+        padding_bottom: payload.padding_bottom.unwrap_or(17),
         padding_left: payload.padding_left.unwrap_or(20),
+        day_label_width: payload.day_label_width.unwrap_or(28),
+        month_label_height: payload.month_label_height.unwrap_or(15),
+        title_height: payload.title_height.unwrap_or(30),
+        legend_height: payload.legend_height.unwrap_or(8),
         show_month_labels: payload.show_month_labels.unwrap_or(true),
         show_day_labels: payload.show_day_labels.unwrap_or(true),
         show_legend: payload.show_legend.unwrap_or(true),
         show_total_count: payload.show_total_count.unwrap_or(true),
+        show_username: payload.show_username.unwrap_or(true),
+        show_watermark: payload.show_watermark.unwrap_or(true),
         font_family: payload.font_family.clone().unwrap_or("sans-serif".to_string()),
         font_size: payload.font_size.unwrap_or(10),
         legend_position: payload.legend_position.clone().unwrap_or("bottom".to_string()),
@@ -494,6 +500,16 @@ pub async fn preview_theme(
         created_at: Utc::now(),
         updated_at: Utc::now(),
     };
+
+    // Fetch user to get username
+    let user_model = user::Entity::find_by_id(user_id)
+        .one(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| actix_web::error::ErrorNotFound("User not found"))?;
 
     // Fetch user's generation settings (or use defaults)
     let settings = heatmap_generation_setting::Entity::find()
@@ -565,8 +581,8 @@ pub async fn preview_theme(
         _ => return Err(actix_web::error::ErrorBadRequest("Invalid preview format")),
     };
 
-    // Generate in the requested format
-    let content = generator.generate_preview_in_format(&theme, &heatmap_data, &format)
+    // Generate in the requested format with username
+    let content = generator.generate_heatmap_with_username(&theme, &heatmap_data, &format, Some(&user_model.username))
         .map_err(|e| {
             log::error!("Failed to generate preview: {}", e);
             actix_web::error::ErrorInternalServerError("Failed to generate preview")
@@ -605,10 +621,16 @@ pub struct PreviewThemeRequest {
     pub padding_right: Option<i32>,
     pub padding_bottom: Option<i32>,
     pub padding_left: Option<i32>,
+    pub day_label_width: Option<i32>,
+    pub month_label_height: Option<i32>,
+    pub title_height: Option<i32>,
+    pub legend_height: Option<i32>,
     pub show_month_labels: Option<bool>,
     pub show_day_labels: Option<bool>,
     pub show_legend: Option<bool>,
     pub show_total_count: Option<bool>,
+    pub show_username: Option<bool>,
+    pub show_watermark: Option<bool>,
     pub font_family: Option<String>,
     pub font_size: Option<i32>,
     pub legend_position: Option<String>,

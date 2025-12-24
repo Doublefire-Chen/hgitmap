@@ -5,7 +5,7 @@ use sea_orm::sea_query::Expr;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-use crate::models::{generated_heatmap, heatmap_generation_setting};
+use crate::models::{generated_heatmap, heatmap_generation_setting, user};
 use crate::services::heatmap_generator::HeatmapGenerator;
 
 /// GET /static/heatmaps/:user_id/:filename
@@ -184,6 +184,19 @@ async fn generate_heatmap_on_demand(
 
     let start_time = std::time::Instant::now();
 
+    // Fetch user to get username
+    let user_model = user::Entity::find_by_id(*user_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| {
+            log::error!("User not found: {}", user_id);
+            actix_web::error::ErrorNotFound("User not found")
+        })?;
+
     // Fetch contribution data
     let heatmap_data = generator.fetch_contribution_data(*user_id, &settings)
         .await
@@ -192,8 +205,8 @@ async fn generate_heatmap_on_demand(
             actix_web::error::ErrorInternalServerError("Failed to fetch contribution data")
         })?;
 
-    // Generate the heatmap in the requested format
-    let content = generator.generate_preview_in_format(theme, &heatmap_data, format)
+    // Generate the heatmap in the requested format with username
+    let content = generator.generate_heatmap_with_username(theme, &heatmap_data, format, Some(&user_model.username))
         .map_err(|e| {
             log::error!("Failed to generate heatmap: {}", e);
             actix_web::error::ErrorInternalServerError("Failed to generate heatmap")

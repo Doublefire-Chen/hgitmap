@@ -91,11 +91,19 @@ pub struct Model {
     pub padding_bottom: i32,
     pub padding_left: i32,
 
+    // Layout spacing settings
+    pub day_label_width: i32,
+    pub month_label_height: i32,
+    pub title_height: i32,
+    pub legend_height: i32,
+
     // Display options
     pub show_month_labels: bool,
     pub show_day_labels: bool,
     pub show_legend: bool,
     pub show_total_count: bool,
+    pub show_username: bool,
+    pub show_watermark: bool,
 
     // Font settings
     pub font_family: String,

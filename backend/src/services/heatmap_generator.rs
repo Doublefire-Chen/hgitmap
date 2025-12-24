@@ -1,18 +1,16 @@
-use sea_orm::*;
-use std::path::PathBuf;
-use chrono::{Datelike, Duration, NaiveDate, Utc};
-use sha2::{Sha256, Digest};
 use anyhow::{Context, Result};
+use chrono::{Datelike, Duration, NaiveDate, Utc};
 use image::{ImageBuffer, ImageEncoder, RgbaImage};
+use sea_orm::*;
+use sha2::{Digest, Sha256};
 use std::fs;
+use std::path::PathBuf;
 use usvg::{TreeParsing, TreeTextToPath};
 
 use crate::models::{
+    contribution, generated_heatmap, git_platform_account, heatmap_generation_setting,
     heatmap_theme::{self, HeatmapFormat},
-    contribution,
-    generated_heatmap,
-    git_platform_account,
-    heatmap_generation_setting,
+    user,
 };
 
 // Color palette definitions for different schemes
@@ -152,9 +150,19 @@ impl HeatmapGenerator {
         user_id: uuid::Uuid,
         theme: &heatmap_theme::Model,
     ) -> Result<Vec<generated_heatmap::Model>> {
-        log::info!("Generating heatmaps for theme: {} (user: {})", theme.slug, user_id);
+        log::info!(
+            "Generating heatmaps for theme: {} (user: {})",
+            theme.slug,
+            user_id
+        );
 
         let start_time = std::time::Instant::now();
+
+        // Fetch user to get username
+        let user_model = user::Entity::find_by_id(user_id)
+            .one(&self.db)
+            .await?
+            .context("User not found")?;
 
         // Fetch generation settings
         let settings = heatmap_generation_setting::Entity::find()
@@ -167,7 +175,7 @@ impl HeatmapGenerator {
         let heatmap_data = self.fetch_contribution_data(user_id, &settings).await?;
 
         // Generate SVG
-        let svg_content = self.generate_svg(theme, &heatmap_data)?;
+        let svg_content = self.generate_svg(theme, &heatmap_data, Some(&user_model.username))?;
 
         // Ensure output directory exists
         let output_dir = self.get_output_directory(user_id)?;
@@ -348,15 +356,16 @@ impl HeatmapGenerator {
         })
     }
 
-    /// Generate preview in the requested format (svg, png, jpeg, webp)
-    pub fn generate_preview_in_format(
+    /// Generate heatmap with username in the requested format (for embed URLs)
+    pub fn generate_heatmap_with_username(
         &self,
         theme: &heatmap_theme::Model,
         data: &HeatmapData,
         format: &HeatmapFormat,
+        username: Option<&str>,
     ) -> Result<Vec<u8>> {
-        // First generate SVG
-        let svg_content = self.generate_svg(theme, data)?;
+        // Generate SVG with username
+        let svg_content = self.generate_svg(theme, data, username)?;
 
         // Convert to requested format
         match format {
@@ -372,13 +381,14 @@ impl HeatmapGenerator {
         &self,
         theme: &heatmap_theme::Model,
         data: &HeatmapData,
+        username: Option<&str>,
     ) -> Result<String> {
         let cell_size = theme.cell_size as usize;
         let cell_gap = theme.cell_gap as usize;
-        let day_label_width = 28; // Width for day labels (Mon, Wed, Fri)
-        let month_label_height = 15; // Height for month labels
-        let title_height = 30; // Height for title
-        let legend_height = 30; // Height for legend
+        let day_label_width = theme.day_label_width as usize;
+        let month_label_height = theme.month_label_height as usize;
+        let title_height = theme.title_height as usize;
+        let legend_height = theme.legend_height as usize;
         let padding_right = theme.padding_right as usize;
         let padding_bottom = theme.padding_bottom as usize;
 
@@ -391,13 +401,17 @@ impl HeatmapGenerator {
 
         // Total dimensions including all UI elements
         let total_width = day_label_width + graph_width + padding_right;
-        let total_height = title_height + month_label_height + graph_height + legend_height + padding_bottom;
+        let total_height =
+            title_height + month_label_height + graph_height + legend_height + padding_bottom;
 
         // Get color palette
         let mut palette = ColorPalette::from_scheme(&theme.color_scheme);
 
         // Override with custom colors ONLY if color_scheme is Custom
-        if matches!(theme.color_scheme, heatmap_theme::HeatmapColorScheme::Custom) {
+        if matches!(
+            theme.color_scheme,
+            heatmap_theme::HeatmapColorScheme::Custom
+        ) {
             if let Some(custom_colors_json) = &theme.custom_colors {
                 if let Some(colors_array) = custom_colors_json.as_array() {
                     palette.colors = colors_array
@@ -408,7 +422,11 @@ impl HeatmapGenerator {
                 }
             }
         } else {
-            log::info!("Using default palette for scheme {:?}: {:?}", theme.color_scheme, palette.colors);
+            log::info!(
+                "Using default palette for scheme {:?}: {:?}",
+                theme.color_scheme,
+                palette.colors
+            );
         }
 
         let mut svg = String::new();
@@ -420,12 +438,12 @@ impl HeatmapGenerator {
                 // Width specified, calculate height to maintain aspect ratio
                 let aspect_ratio = total_height as f64 / total_width as f64;
                 (w, (w as f64 * aspect_ratio) as i32)
-            },
+            }
             (None, Some(h)) => {
                 // Height specified, calculate width to maintain aspect ratio
                 let aspect_ratio = total_width as f64 / total_height as f64;
                 ((h as f64 * aspect_ratio) as i32, h)
-            },
+            }
             (None, None) => (total_width as i32, total_height as i32),
         };
 
@@ -450,16 +468,29 @@ impl HeatmapGenerator {
             theme.background_color
         ));
 
+        // Username at top right if enabled (same level as contribution count)
+        if theme.show_username {
+            if let Some(user) = username {
+                svg.push_str(&format!(
+                    r#"<text x="{}" y="{}" font-family="{}" font-size="{}" fill="{}" text-anchor="end">@{}</text>"#,
+                    total_width - 5, // Position at right with small margin
+                    20, // Same level as contribution count
+                    theme.font_family,
+                    theme.font_size + 2, // Same size as contribution count
+                    theme.text_color,
+                    user
+                ));
+            }
+        }
+
         // Title with contribution count
         if theme.show_total_count {
-            let title_text = format!(
-                "{} contributions in the last year",
-                data.total_count
-            );
+            let title_text = format!("{} contributions in the last year", data.total_count);
+            // No need to push down if username is on the right
             svg.push_str(&format!(
-                r#"<text x="{}" y="{}" font-family="{}" font-size="{}" font-weight="400" fill="{}">{}</text>"#,
+                r#"<text x="{}" y="{}" font-family="{}" font-size="{}" fill="{}">{}</text>"#,
                 day_label_width,
-                20, // Positioned near top
+                20, // Default position
                 theme.font_family,
                 theme.font_size + 2, // Slightly larger for title
                 theme.text_color,
@@ -469,8 +500,9 @@ impl HeatmapGenerator {
 
         // Month labels
         if theme.show_month_labels {
-            let month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            let month_names = [
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+            ];
             let mut last_month = -1;
 
             for (week_idx, week) in data.weeks.iter().enumerate() {
@@ -500,14 +532,14 @@ impl HeatmapGenerator {
 
         // Day labels (Mon, Wed, Fri)
         if theme.show_day_labels {
-            let day_labels = vec![
-                (1, "Mon"),
-                (3, "Wed"),
-                (5, "Fri"),
-            ];
+            let day_labels = vec![(1, "Mon"), (3, "Wed"), (5, "Fri")];
 
             for (day_idx, label) in day_labels {
-                let y = title_height + month_label_height + day_idx * (cell_size + cell_gap) + cell_size / 2 + 3;
+                let y = title_height
+                    + month_label_height
+                    + day_idx * (cell_size + cell_gap)
+                    + cell_size / 2
+                    + 3;
                 svg.push_str(&format!(
                     r#"<text x="{}" y="{}" font-family="{}" font-size="{}" fill="{}" text-anchor="start">{}</text>"#,
                     5, // Left margin
@@ -554,8 +586,9 @@ impl HeatmapGenerator {
 
         // Legend at bottom right
         if theme.show_legend {
-            let legend_y = title_height + month_label_height + graph_height + 15;
-            let legend_start_x = total_width - (40 + palette.colors.len() * (cell_size + 3) + 40 + padding_right);
+            let legend_y = title_height + month_label_height + graph_height + 8;
+            let legend_start_x =
+                total_width - (40 + palette.colors.len() * (cell_size + 3) + 40 + padding_right);
 
             // "Less" label
             svg.push_str(&format!(
@@ -589,6 +622,31 @@ impl HeatmapGenerator {
             ));
         }
 
+        // Watermark at bottom left (clickable link in SVG)
+        if theme.show_watermark {
+            let watermark_y = title_height + month_label_height + graph_height + 8;
+            let watermark_text = "Powered by Hgitmap";
+            let watermark_url = "https://github.com/Doublefire-Chen/hgitmap";
+
+            // Wrap in clickable link for SVG format
+            svg.push_str(&format!(
+                r#"<a href="{}" target="_blank" rel="noopener">"#,
+                watermark_url
+            ));
+
+            svg.push_str(&format!(
+                r#"<text x="{}" y="{}" font-family="{}" font-size="{}" fill="{}" opacity="0.6" text-anchor="start">{}</text>"#,
+                day_label_width,
+                watermark_y + cell_size / 2 + 3,
+                theme.font_family,
+                theme.font_size - 1, // Slightly smaller than regular font
+                theme.text_color,
+                watermark_text
+            ));
+
+            svg.push_str("</a>");
+        }
+
         svg.push_str("</svg>");
 
         Ok(svg)
@@ -620,12 +678,9 @@ impl HeatmapGenerator {
         let transform = tiny_skia::Transform::from_scale(scale, scale);
         resvg::Tree::from_usvg(&tree).render(transform, &mut pixmap.as_mut());
 
-        let img: RgbaImage = ImageBuffer::from_raw(
-            pixmap.width(),
-            pixmap.height(),
-            pixmap.data().to_vec(),
-        )
-        .context("Failed to create image buffer")?;
+        let img: RgbaImage =
+            ImageBuffer::from_raw(pixmap.width(), pixmap.height(), pixmap.data().to_vec())
+                .context("Failed to create image buffer")?;
 
         // Use PNG encoder with best compression (lossless)
         let mut buffer = Vec::new();
@@ -671,12 +726,9 @@ impl HeatmapGenerator {
         resvg::Tree::from_usvg(&tree).render(transform, &mut pixmap.as_mut());
 
         // Convert RGBA to RGB for JPEG (no transparency)
-        let rgba_img: RgbaImage = ImageBuffer::from_raw(
-            pixmap.width(),
-            pixmap.height(),
-            pixmap.data().to_vec(),
-        )
-        .context("Failed to create image buffer")?;
+        let rgba_img: RgbaImage =
+            ImageBuffer::from_raw(pixmap.width(), pixmap.height(), pixmap.data().to_vec())
+                .context("Failed to create image buffer")?;
 
         let rgb_img = image::DynamicImage::ImageRgba8(rgba_img).to_rgb8();
 
@@ -716,12 +768,9 @@ impl HeatmapGenerator {
         let transform = tiny_skia::Transform::from_scale(scale, scale);
         resvg::Tree::from_usvg(&tree).render(transform, &mut pixmap.as_mut());
 
-        let img: RgbaImage = ImageBuffer::from_raw(
-            pixmap.width(),
-            pixmap.height(),
-            pixmap.data().to_vec(),
-        )
-        .context("Failed to create image buffer")?;
+        let img: RgbaImage =
+            ImageBuffer::from_raw(pixmap.width(), pixmap.height(), pixmap.data().to_vec())
+                .context("Failed to create image buffer")?;
 
         // WebP with maximum quality
         let mut buffer = Vec::new();
@@ -742,8 +791,10 @@ impl HeatmapGenerator {
         path.push(user_id.to_string());
 
         // Create directory if it doesn't exist
-        fs::create_dir_all(&path)
-            .context(format!("Failed to create heatmap directory: {}", path.display()))?;
+        fs::create_dir_all(&path).context(format!(
+            "Failed to create heatmap directory: {}",
+            path.display()
+        ))?;
 
         Ok(path)
     }
