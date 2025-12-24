@@ -310,6 +310,9 @@ pub async fn github_callback(
             company: Set(None),
             followers_count: Set(None),
             following_count: Set(None),
+            sync_profile: Set(true),
+            sync_contributions: Set(true),
+            sync_activities: Set(true),
         };
 
         git_platform_account::Entity::insert(new_account)

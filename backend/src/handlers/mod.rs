@@ -8,3 +8,4 @@ pub mod activities;
 pub mod heatmap_themes;
 pub mod heatmap_generation;
 pub mod static_files;
+pub mod sync;

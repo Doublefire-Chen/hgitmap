@@ -130,6 +130,13 @@ class ApiClient {
     });
   }
 
+  async updatePlatformSyncPreferences(platformId, preferences) {
+    return this.fetchWithAuth(`/platforms/${platformId}/sync-preferences`, {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    });
+  }
+
   // Contributions
   async getContributions(from = null, to = null) {
     const params = new URLSearchParams();
@@ -317,6 +324,17 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(themeData),
     });
+  }
+
+  // Platform Sync
+  async triggerSync() {
+    return this.fetchWithAuth('/sync/trigger', {
+      method: 'POST',
+    });
+  }
+
+  async getSyncStatus() {
+    return this.fetchWithAuth('/sync/status');
   }
 }
 

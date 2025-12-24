@@ -40,6 +40,10 @@ CREATE TABLE git_platform_accounts (
     company VARCHAR(255),
     followers_count INTEGER DEFAULT 0,
     following_count INTEGER DEFAULT 0,
+    -- Sync preferences (per-platform control)
+    sync_profile BOOLEAN DEFAULT true, -- Enable/disable syncing profile data
+    sync_contributions BOOLEAN DEFAULT true, -- Enable/disable syncing contribution/heatmap data
+    sync_activities BOOLEAN DEFAULT true, -- Enable/disable syncing activity timeline data
     UNIQUE(user_id, platform_type, platform_username, platform_url)
 );
 
@@ -349,7 +353,7 @@ CREATE TABLE heatmap_generation_settings (
     update_interval_minutes INTEGER NOT NULL DEFAULT 60,
 
     -- Allow users to pause automatic generation
-    auto_generation_enabled BOOLEAN DEFAULT true,
+    auto_generation_enabled BOOLEAN DEFAULT false,
 
     -- Date range for heatmap (in days, e.g., 365 for one year)
     date_range_days INTEGER DEFAULT 365,

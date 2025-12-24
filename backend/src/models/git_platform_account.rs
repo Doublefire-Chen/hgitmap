@@ -36,6 +36,10 @@ pub struct Model {
     pub company: Option<String>,
     pub followers_count: Option<i32>,
     pub following_count: Option<i32>,
+    // Sync preferences
+    pub sync_profile: bool,
+    pub sync_contributions: bool,
+    pub sync_activities: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -42,6 +42,14 @@ async fn main() -> std::io::Result<()> {
     log::info!("Starting heatmap generation job processor");
     services::job_processor::start_job_processor(db.clone());
 
+    // Start sync scheduler for automatic platform data syncing
+    log::info!("Starting platform sync scheduler");
+    let scheduler = std::sync::Arc::new(services::sync_scheduler::SyncScheduler::new(db.clone()));
+    let scheduler_clone = scheduler.clone();
+    tokio::spawn(async move {
+        scheduler_clone.start().await;
+    });
+
     // Start HTTP server
     println!("🌐 Starting HTTP server at http://{}:{}", host, port);
     println!("📍 Available endpoints:");
@@ -98,6 +106,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/connect", web::post().to(handlers::platform_accounts::connect_platform))
                     .route("", web::get().to(handlers::platform_accounts::list_platforms))
                     .route("/{id}", web::delete().to(handlers::platform_accounts::disconnect_platform))
+                    .route("/{id}/sync-preferences", web::put().to(handlers::platform_accounts::update_sync_preferences))
                     .route("/{id}/sync", web::post().to(handlers::platform_accounts::sync_platform))
             )
             .service(
@@ -117,6 +126,13 @@ async fn main() -> std::io::Result<()> {
                     .wrap(crate::middleware::auth::JwtMiddleware)
                     .route("", web::get().to(handlers::settings::get_settings))
                     .route("", web::put().to(handlers::settings::update_settings))
+            )
+            // Sync endpoints (JWT required)
+            .service(
+                web::scope("/sync")
+                    .wrap(crate::middleware::auth::JwtMiddleware)
+                    .route("/trigger", web::post().to(handlers::sync::trigger_sync))
+                    .route("/status", web::get().to(handlers::sync::get_sync_status))
             )
             // Heatmap theme and generation endpoints
             .service(

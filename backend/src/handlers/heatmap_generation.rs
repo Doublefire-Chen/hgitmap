@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::Utc;
 
-use crate::models::{heatmap_generation_setting, heatmap_generation_job, generated_heatmap, heatmap_theme, user};
+use crate::models::{heatmap_generation_setting, heatmap_generation_job, generated_heatmap, heatmap_theme, user, git_platform_account};
 use crate::services::heatmap_generator::HeatmapGenerator;
 
 // ============ Request/Response DTOs ============
@@ -146,7 +146,7 @@ pub async fn get_generation_settings(
                 id: Set(Uuid::new_v4()),
                 user_id: Set(user_id),
                 update_interval_minutes: Set(60),
-                auto_generation_enabled: Set(true),
+                auto_generation_enabled: Set(false),
                 date_range_days: Set(365),
                 include_private_contributions: Set(true),
                 storage_path: Set(None),
@@ -198,6 +198,32 @@ pub async fn update_generation_settings(
         }
     }
 
+    // Validate that user has at least one platform with at least one sync type enabled
+    // when trying to enable auto sync
+    if let Some(enabled) = payload.auto_generation_enabled {
+        if enabled {
+            let platforms = git_platform_account::Entity::find()
+                .filter(git_platform_account::Column::UserId.eq(user_id))
+                .filter(git_platform_account::Column::IsActive.eq(true))
+                .all(db.as_ref())
+                .await
+                .map_err(|e| {
+                    log::error!("Database error: {}", e);
+                    actix_web::error::ErrorInternalServerError("Database error")
+                })?;
+
+            let has_any_sync_enabled = platforms.iter().any(|p| {
+                p.sync_profile || p.sync_contributions || p.sync_activities
+            });
+
+            if !has_any_sync_enabled {
+                return Err(actix_web::error::ErrorBadRequest(
+                    "Cannot enable automatic sync: At least one platform must have at least one sync type enabled (Profile, Heatmap, or Activities)"
+                ));
+            }
+        }
+    }
+
     let settings = heatmap_generation_setting::Entity::find()
         .filter(heatmap_generation_setting::Column::UserId.eq(user_id))
         .one(db.as_ref())
@@ -244,7 +270,7 @@ pub async fn update_generation_settings(
                 id: Set(Uuid::new_v4()),
                 user_id: Set(user_id),
                 update_interval_minutes: Set(payload.update_interval_minutes.unwrap_or(60)),
-                auto_generation_enabled: Set(payload.auto_generation_enabled.unwrap_or(true)),
+                auto_generation_enabled: Set(payload.auto_generation_enabled.unwrap_or(false)),
                 date_range_days: Set(payload.date_range_days.unwrap_or(365)),
                 include_private_contributions: Set(payload.include_private_contributions.unwrap_or(true)),
                 storage_path: Set(payload.storage_path.clone()),
@@ -527,7 +553,7 @@ pub async fn preview_theme(
             id: Uuid::new_v4(),
             user_id,
             update_interval_minutes: 60,
-            auto_generation_enabled: true,
+            auto_generation_enabled: false,
             date_range_days: 365,
             include_private_contributions: true,
             storage_path: None,

@@ -58,6 +58,12 @@ const Home = () => {
           >
             Themes
           </button>
+          <button
+            className="tab"
+            onClick={() => navigate('/sync/settings')}
+          >
+            Sync Settings
+          </button>
         </div>
       </header>
 

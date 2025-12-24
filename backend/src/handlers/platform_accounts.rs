@@ -15,6 +15,13 @@ pub struct ConnectPlatformRequest {
     pub instance_url: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateSyncPreferencesRequest {
+    pub sync_profile: bool,
+    pub sync_contributions: bool,
+    pub sync_activities: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct PlatformAccountResponse {
     pub id: String,
@@ -34,6 +41,10 @@ pub struct PlatformAccountResponse {
     pub company: Option<String>,
     pub followers_count: Option<i32>,
     pub following_count: Option<i32>,
+    // Sync preferences
+    pub sync_profile: bool,
+    pub sync_contributions: bool,
+    pub sync_activities: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,6 +142,9 @@ pub async fn connect_platform(
             company: Set(None),
             followers_count: Set(None),
             following_count: Set(None),
+            sync_profile: Set(true),
+            sync_contributions: Set(true),
+            sync_activities: Set(true),
         };
 
         git_platform_account::Entity::insert(new_account)
@@ -165,6 +179,9 @@ pub async fn connect_platform(
         company: account.company,
         followers_count: account.followers_count,
         following_count: account.following_count,
+        sync_profile: account.sync_profile,
+        sync_contributions: account.sync_contributions,
+        sync_activities: account.sync_activities,
     }))
 }
 
@@ -214,6 +231,9 @@ pub async fn list_platforms(
                 company: account.company,
                 followers_count: account.followers_count,
                 following_count: account.following_count,
+                sync_profile: account.sync_profile,
+                sync_contributions: account.sync_contributions,
+                sync_activities: account.sync_activities,
             }
         })
         .collect();
@@ -264,6 +284,85 @@ pub async fn disconnect_platform(
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "Platform disconnected successfully"
     })))
+}
+
+/// PUT /api/platforms/:id/sync-preferences
+/// Update sync preferences for a platform account
+pub async fn update_sync_preferences(
+    db: web::Data<DatabaseConnection>,
+    user_claims: web::ReqData<crate::middleware::auth::Claims>,
+    path: web::Path<String>,
+    payload: web::Json<UpdateSyncPreferencesRequest>,
+) -> Result<impl Responder, actix_web::Error> {
+    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
+        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
+    })?;
+
+    let account_id = Uuid::parse_str(&path.into_inner()).map_err(|e| {
+        actix_web::error::ErrorBadRequest(format!("Invalid account ID: {}", e))
+    })?;
+
+    // Find the account
+    let account = git_platform_account::Entity::find_by_id(account_id)
+        .one(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+    // Verify ownership
+    if account.user_id != user_id {
+        return Err(actix_web::error::ErrorForbidden("Not authorized"));
+    }
+
+    // Validate that at least one sync type is enabled
+    if !payload.sync_profile && !payload.sync_contributions && !payload.sync_activities {
+        return Err(actix_web::error::ErrorBadRequest(
+            "At least one sync type must be enabled (Profile, Heatmap, or Activities)"
+        ));
+    }
+
+    // Update sync preferences
+    let mut account: git_platform_account::ActiveModel = account.into();
+    account.sync_profile = Set(payload.sync_profile);
+    account.sync_contributions = Set(payload.sync_contributions);
+    account.sync_activities = Set(payload.sync_activities);
+    account.updated_at = Set(chrono::Utc::now());
+
+    let updated_account = account.update(db.as_ref()).await.map_err(|e| {
+        log::error!("Failed to update sync preferences: {}", e);
+        actix_web::error::ErrorInternalServerError("Failed to update sync preferences")
+    })?;
+
+    let platform_str = match updated_account.platform_type {
+        git_platform_account::GitPlatform::GitHub => "github",
+        git_platform_account::GitPlatform::GitLab => "gitlab",
+        git_platform_account::GitPlatform::Gitea => "gitea",
+    };
+
+    Ok(HttpResponse::Ok().json(PlatformAccountResponse {
+        id: updated_account.id.to_string(),
+        platform: platform_str.to_string(),
+        platform_username: updated_account.platform_username,
+        platform_url: updated_account.platform_url,
+        is_active: updated_account.is_active,
+        last_synced_at: updated_account.last_synced_at.map(|dt| dt.to_rfc3339()),
+        created_at: updated_account.created_at.to_rfc3339(),
+        updated_at: updated_account.updated_at.to_rfc3339(),
+        avatar_url: updated_account.avatar_url,
+        display_name: updated_account.display_name,
+        bio: updated_account.bio,
+        profile_url: updated_account.profile_url,
+        location: updated_account.location,
+        company: updated_account.company,
+        followers_count: updated_account.followers_count,
+        following_count: updated_account.following_count,
+        sync_profile: updated_account.sync_profile,
+        sync_contributions: updated_account.sync_contributions,
+        sync_activities: updated_account.sync_activities,
+    }))
 }
 
 /// POST /api/platforms/:id/sync?all_years=true

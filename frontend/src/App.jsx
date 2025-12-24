@@ -11,6 +11,7 @@ import AdminOAuthApps from './pages/AdminOAuthApps';
 import HeatmapThemes from './pages/HeatmapThemes';
 import ThemeEditor from './pages/ThemeEditor';
 import GenerationSettings from './pages/GenerationSettings';
+import SyncSettings from './pages/SyncSettings';
 
 function App() {
   return (
@@ -73,6 +74,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <GenerationSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sync/settings"
+              element={
+                <ProtectedRoute>
+                  <SyncSettings />
                 </ProtectedRoute>
               }
             />
