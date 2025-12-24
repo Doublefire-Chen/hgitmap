@@ -138,10 +138,11 @@ class ApiClient {
   }
 
   // Contributions
-  async getContributions(from = null, to = null) {
+  async getContributions(from = null, to = null, platform = null) {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
     if (to) params.append('to', to);
+    if (platform) params.append('platform', platform);
 
     const queryString = params.toString();
     const url = queryString ? `/contributions?${queryString}` : '/contributions';
@@ -154,12 +155,13 @@ class ApiClient {
   }
 
   // Activities
-  async getActivities(from = null, to = null, limit = 50, offset = 0) {
+  async getActivities(from = null, to = null, limit = 50, offset = 0, platform = null) {
     const params = new URLSearchParams();
     if (from) params.append('from', from);
     if (to) params.append('to', to);
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
+    if (platform) params.append('platform', platform);
 
     const queryString = params.toString();
     const url = `/activities?${queryString}`;
@@ -167,12 +169,15 @@ class ApiClient {
     return this.fetchWithAuth(url);
   }
 
-  async syncActivities(allYears = false, year = null) {
+  async syncActivities(allYears = false, year = null, platformAccountId = null) {
     const params = new URLSearchParams();
     if (allYears) {
       params.append('all_years', 'true');
     } else if (year) {
       params.append('year', year.toString());
+    }
+    if (platformAccountId) {
+      params.append('platform_account_id', platformAccountId);
     }
     const queryString = params.toString();
     const url = queryString ? `/activities/sync?${queryString}` : '/activities/sync';

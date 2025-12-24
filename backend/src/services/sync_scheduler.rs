@@ -5,16 +5,19 @@ use tokio::time::{sleep, Duration as TokioDuration};
 
 use crate::models::heatmap_generation_setting;
 use crate::services::platform_sync::PlatformSyncService;
+use crate::utils::config::Config;
 
 pub struct SyncScheduler {
     db: DatabaseConnection,
+    config: Config,
     check_interval_seconds: u64,
 }
 
 impl SyncScheduler {
-    pub fn new(db: DatabaseConnection) -> Self {
+    pub fn new(db: DatabaseConnection, config: Config) -> Self {
         Self {
             db,
+            config,
             check_interval_seconds: 60, // Check every minute
         }
     }
@@ -58,8 +61,9 @@ impl SyncScheduler {
 
                 // Spawn a new task for this sync to avoid blocking
                 let db_clone = self.db.clone();
+                let config_clone = self.config.clone();
                 tokio::spawn(async move {
-                    let sync_service = PlatformSyncService::new(db_clone.clone());
+                    let sync_service = PlatformSyncService::new(db_clone.clone(), config_clone);
 
                     match sync_service.sync_user_data(user_id).await {
                         Ok(result) => {

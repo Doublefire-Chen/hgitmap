@@ -235,6 +235,36 @@
   margin: 0;
 }
 
+.platform-actions {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary, #4b5563);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-tertiary-hover, #374151);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .sync-settings-container {
     padding: 1rem;
@@ -247,5 +277,13 @@
   .status-section,
   .settings-section {
     padding: 1.5rem;
+  }
+
+  .platform-actions {
+    flex-direction: column;
+  }
+
+  .btn-secondary {
+    width: 100%;
   }
 }

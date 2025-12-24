@@ -5,14 +5,17 @@ use uuid::Uuid;
 
 use crate::models::{contribution, git_platform_account, heatmap_theme};
 use crate::services::heatmap_generator::HeatmapGenerator;
+use crate::services::git_platforms::{github::GitHubClient, gitea::GiteaClient, GitPlatform, PlatformConfig};
+use crate::utils::{config::Config, encryption};
 
 pub struct PlatformSyncService {
     db: DatabaseConnection,
+    config: Config,
 }
 
 impl PlatformSyncService {
-    pub fn new(db: DatabaseConnection) -> Self {
-        Self { db }
+    pub fn new(db: DatabaseConnection, config: Config) -> Self {
+        Self { db, config }
     }
 
     /// Sync all active platform accounts for a user (current year only)
@@ -217,48 +220,134 @@ impl PlatformSyncService {
         Ok(())
     }
 
-    /// Fetch contributions from git platform (placeholder - needs real implementation)
+    /// Fetch contributions from git platform
     async fn fetch_contributions_from_platform(
         &self,
         account: &git_platform_account::Model,
-        _start_date: chrono::NaiveDate,
-        _end_date: chrono::NaiveDate,
+        start_date: chrono::NaiveDate,
+        end_date: chrono::NaiveDate,
     ) -> Result<Vec<(chrono::NaiveDate, i32)>> {
-        // TODO: Implement actual API calls to GitHub, GitLab, Gitea
-        // For now, return empty list to avoid errors
-        // This is where you would:
-        // 1. Use the platform's API client (GitHub GraphQL, GitLab REST, etc.)
-        // 2. Fetch contribution data for the date range
-        // 3. Parse and return the data
+        // Decrypt access token
+        let access_token = account.access_token.as_ref()
+            .context("No access token found")?;
+        let decrypted_token = encryption::decrypt(access_token, &self.config.encryption_key)
+            .context("Failed to decrypt access token")?;
 
-        log::warn!(
-            "Platform sync not implemented for {:?}: {}",
-            account.platform_type,
-            account.platform_username
-        );
+        // Convert dates to DateTime<Utc>
+        let from = chrono::NaiveDateTime::new(
+            start_date,
+            chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+        ).and_utc();
+        let to = chrono::NaiveDateTime::new(
+            end_date,
+            chrono::NaiveTime::from_hms_opt(23, 59, 59).unwrap()
+        ).and_utc();
 
-        Ok(Vec::new())
+        // Fetch contributions based on platform type
+        let contributions = match account.platform_type {
+            git_platform_account::GitPlatform::GitHub => {
+                let client = GitHubClient::new();
+                let config = PlatformConfig::github();
+
+                log::info!("Fetching GitHub contributions for {}", account.platform_username);
+
+                client.fetch_contributions(&config, &account.platform_username, &decrypted_token, from, to)
+                    .await
+                    .context("Failed to fetch GitHub contributions")?
+            }
+            git_platform_account::GitPlatform::Gitea => {
+                let client = GiteaClient::new();
+                let instance_url = account.platform_url.as_ref()
+                    .context("Gitea instance URL not found")?;
+                let config = PlatformConfig::gitea_custom(instance_url);
+
+                log::info!("Fetching Gitea contributions for {} from {}", account.platform_username, instance_url);
+
+                client.fetch_contributions(&config, &account.platform_username, &decrypted_token, from, to)
+                    .await
+                    .context("Failed to fetch Gitea contributions")?
+            }
+            git_platform_account::GitPlatform::GitLab => {
+                log::warn!("GitLab sync not yet implemented");
+                return Ok(Vec::new());
+            }
+        };
+
+        // Convert to (date, count) tuples
+        let result: Vec<(chrono::NaiveDate, i32)> = contributions
+            .iter()
+            .map(|c| (c.date, c.count))
+            .collect();
+
+        log::info!("Fetched {} contribution days for {}", result.len(), account.platform_username);
+
+        Ok(result)
     }
 
-    /// Fetch profile data from git platform (placeholder - needs real implementation)
+    /// Fetch profile data from git platform
     async fn fetch_profile_from_platform(
         &self,
         account: &git_platform_account::Model,
     ) -> Result<ProfileData> {
-        // TODO: Implement actual API calls to GitHub, GitLab, Gitea
-        // For now, return empty profile data
-        // This is where you would:
-        // 1. Use the platform's API client
-        // 2. Fetch user profile information
-        // 3. Parse and return the data
+        // Decrypt access token
+        let access_token = account.access_token.as_ref()
+            .context("No access token found")?;
+        let decrypted_token = encryption::decrypt(access_token, &self.config.encryption_key)
+            .context("Failed to decrypt access token")?;
 
-        log::warn!(
-            "Profile sync not implemented for {:?}: {}",
-            account.platform_type,
-            account.platform_username
-        );
+        // Fetch profile based on platform type
+        let profile_data = match account.platform_type {
+            git_platform_account::GitPlatform::GitHub => {
+                let client = GitHubClient::new();
+                let config = PlatformConfig::github();
 
-        Ok(ProfileData::default())
+                log::info!("Fetching GitHub profile for {}", account.platform_username);
+
+                let profile = client.fetch_user_profile(&config, &account.platform_username, &decrypted_token)
+                    .await
+                    .context("Failed to fetch GitHub profile")?;
+
+                ProfileData {
+                    avatar_url: profile.get("avatar_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    display_name: profile.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    bio: profile.get("bio").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    profile_url: profile.get("html_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    location: profile.get("location").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    company: profile.get("company").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    followers_count: profile.get("followers").and_then(|v| v.as_i64()).map(|n| n as i32),
+                    following_count: profile.get("following").and_then(|v| v.as_i64()).map(|n| n as i32),
+                }
+            }
+            git_platform_account::GitPlatform::Gitea => {
+                let client = GiteaClient::new();
+                let instance_url = account.platform_url.as_ref()
+                    .context("Gitea instance URL not found")?;
+                let config = PlatformConfig::gitea_custom(instance_url);
+
+                log::info!("Fetching Gitea profile for {} from {}", account.platform_username, instance_url);
+
+                let profile = client.fetch_user_profile(&config, &decrypted_token)
+                    .await
+                    .context("Failed to fetch Gitea profile")?;
+
+                ProfileData {
+                    avatar_url: profile.get("avatar_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    display_name: profile.get("full_name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    bio: profile.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    profile_url: Some(format!("{}/{}", instance_url, account.platform_username)),
+                    location: profile.get("location").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    company: None, // Gitea doesn't have company field
+                    followers_count: profile.get("followers_count").and_then(|v| v.as_i64()).map(|n| n as i32),
+                    following_count: profile.get("following_count").and_then(|v| v.as_i64()).map(|n| n as i32),
+                }
+            }
+            git_platform_account::GitPlatform::GitLab => {
+                log::warn!("GitLab profile sync not yet implemented");
+                return Ok(ProfileData::default());
+            }
+        };
+
+        Ok(profile_data)
     }
 
     /// Regenerate all heatmaps for a user's themes

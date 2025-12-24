@@ -10,8 +10,11 @@ use utils::{config::Config, db::establish_connection};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Load .env file FIRST before anything else
+    dotenv::dotenv().ok();
+
     // Initialize logger with default level if RUST_LOG not set
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     println!("=================================================");
     println!("🚀 hgitmap Backend Server");
@@ -44,7 +47,7 @@ async fn main() -> std::io::Result<()> {
 
     // Start sync scheduler for automatic platform data syncing
     log::info!("Starting platform sync scheduler");
-    let scheduler = std::sync::Arc::new(services::sync_scheduler::SyncScheduler::new(db.clone()));
+    let scheduler = std::sync::Arc::new(services::sync_scheduler::SyncScheduler::new(db.clone(), config.clone()));
     let scheduler_clone = scheduler.clone();
     tokio::spawn(async move {
         scheduler_clone.start().await;

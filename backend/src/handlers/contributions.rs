@@ -10,6 +10,7 @@ use crate::models::{contribution, git_platform_account, user_setting};
 pub struct ContributionsQuery {
     pub from: Option<String>,
     pub to: Option<String>,
+    pub platform: Option<String>, // Filter by platform: "github", "gitea", etc.
 }
 
 #[derive(Debug, Serialize)]
@@ -59,9 +60,27 @@ pub async fn get_contributions(
         .unwrap_or(true);
 
     // Get all active platform accounts for this user
-    let accounts = git_platform_account::Entity::find()
+    let mut accounts_query = git_platform_account::Entity::find()
         .filter(git_platform_account::Column::UserId.eq(user_id))
-        .filter(git_platform_account::Column::IsActive.eq(true))
+        .filter(git_platform_account::Column::IsActive.eq(true));
+
+    // Filter by platform type if specified
+    if let Some(platform_filter) = &query.platform {
+        let platform_type = match platform_filter.to_lowercase().as_str() {
+            "github" => git_platform_account::GitPlatform::GitHub,
+            "gitea" => git_platform_account::GitPlatform::Gitea,
+            "gitlab" => git_platform_account::GitPlatform::GitLab,
+            _ => {
+                log::warn!("Invalid platform filter: {}", platform_filter);
+                return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": format!("Invalid platform: {}", platform_filter)
+                })));
+            }
+        };
+        accounts_query = accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
+    }
+
+    let accounts = accounts_query
         .all(db.as_ref())
         .await
         .map_err(|e| {

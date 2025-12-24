@@ -7,7 +7,9 @@ function PlatformConnector() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showPATForm, setShowPATForm] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState('github'); // 'github' or 'gitea'
   const [patToken, setPatToken] = useState('');
+  const [instanceUrl, setInstanceUrl] = useState(''); // For Gitea/GitLab custom instances
   const [patError, setPatError] = useState(null);
   const [patLoading, setPatLoading] = useState(false);
   const [syncingPlatformId, setSyncingPlatformId] = useState(null);
@@ -55,11 +57,18 @@ function PlatformConnector() {
       return;
     }
 
+    // Validate instance URL for Gitea
+    if (selectedPlatform === 'gitea' && !instanceUrl.trim()) {
+      setPatError('Please enter your Gitea instance URL');
+      return;
+    }
+
     try {
       setPatLoading(true);
       setPatError(null);
-      await apiClient.connectPlatform('github', patToken);
+      await apiClient.connectPlatform(selectedPlatform, patToken, selectedPlatform === 'gitea' ? instanceUrl : null);
       setPatToken('');
+      setInstanceUrl('');
       setShowPATForm(false);
       await loadPlatforms();
     } catch (err) {
@@ -269,29 +278,72 @@ function PlatformConnector() {
 
       {/* Connect New Platform */}
       <div className="connect-platform-section">
-        <h3>Connect GitHub</h3>
+        <h3>Connect Platform</h3>
 
         {!showPATForm ? (
           <div className="connect-buttons">
             <button className="btn btn-primary" onClick={handleConnectOAuth}>
-              Connect with OAuth
+              Connect GitHub with OAuth
             </button>
-            <button className="btn btn-secondary" onClick={() => setShowPATForm(true)}>
-              Use Personal Access Token
+            <button className="btn btn-secondary" onClick={() => {
+              setSelectedPlatform('github');
+              setShowPATForm(true);
+            }}>
+              Connect with Personal Access Token
             </button>
           </div>
         ) : (
           <form onSubmit={handleConnectPAT} className="pat-form">
-            <p className="pat-instructions">
-              Create a GitHub Personal Access Token with <code>repo</code> and <code>read:user</code> scopes.
-              <br />
-              <a
-                href="https://github.com/settings/tokens/new?scopes=repo,read:user&description=hgitmap"
-                target="_blank"
-                rel="noopener noreferrer"
+            <div className="platform-selector">
+              <label htmlFor="platform-select">Platform:</label>
+              <select
+                id="platform-select"
+                value={selectedPlatform}
+                onChange={(e) => setSelectedPlatform(e.target.value)}
+                disabled={patLoading}
+                className="platform-select"
               >
-                Create token →
-              </a>
+                <option value="github">GitHub</option>
+                <option value="gitea">Gitea</option>
+              </select>
+            </div>
+
+            {selectedPlatform === 'gitea' && (
+              <div className="instance-url-input">
+                <label htmlFor="instance-url">Instance URL:</label>
+                <input
+                  id="instance-url"
+                  type="url"
+                  value={instanceUrl}
+                  onChange={(e) => setInstanceUrl(e.target.value)}
+                  placeholder="https://gitea.example.com"
+                  className="instance-url"
+                  disabled={patLoading}
+                />
+                <p className="input-hint">Enter the full URL of your Gitea instance</p>
+              </div>
+            )}
+
+            <p className="pat-instructions">
+              {selectedPlatform === 'github' ? (
+                <>
+                  Create a GitHub Personal Access Token with <code>repo</code> and <code>read:user</code> scopes.
+                  <br />
+                  <a
+                    href="https://github.com/settings/tokens/new?scopes=repo,read:user&description=hgitmap"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Create token →
+                  </a>
+                </>
+              ) : selectedPlatform === 'gitea' ? (
+                <>
+                  Create a Gitea Personal Access Token with <code>read:repository</code>, <code>read:user</code>, and <code>read:organization</code> scopes.
+                  <br />
+                  Go to your Gitea instance → Settings → Applications → Generate New Token
+                </>
+              ) : null}
             </p>
 
             {patError && <div className="error-message">{patError}</div>}
@@ -300,7 +352,7 @@ function PlatformConnector() {
               type="password"
               value={patToken}
               onChange={(e) => setPatToken(e.target.value)}
-              placeholder="ghp_xxxxxxxxxxxx"
+              placeholder={selectedPlatform === 'github' ? 'ghp_xxxxxxxxxxxx' : selectedPlatform === 'gitea' ? 'Your Gitea token' : 'Token'}
               className="pat-input"
               disabled={patLoading}
             />
@@ -315,7 +367,9 @@ function PlatformConnector() {
                 onClick={() => {
                   setShowPATForm(false);
                   setPatToken('');
+                  setInstanceUrl('');
                   setPatError(null);
+                  setSelectedPlatform('github');
                 }}
                 disabled={patLoading}
               >

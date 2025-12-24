@@ -4,6 +4,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::services::platform_sync::PlatformSyncService;
+use crate::utils::config::Config;
 
 // ============ Response DTOs ============
 
@@ -23,6 +24,7 @@ pub struct SyncResponse {
 /// Manually trigger sync for current user's all platforms
 pub async fn trigger_sync(
     db: web::Data<DatabaseConnection>,
+    config: web::Data<Config>,
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
 ) -> Result<impl Responder, actix_web::Error> {
     let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
@@ -31,7 +33,7 @@ pub async fn trigger_sync(
 
     log::info!("Manual sync triggered for user: {}", user_id);
 
-    let sync_service = PlatformSyncService::new(db.get_ref().clone());
+    let sync_service = PlatformSyncService::new(db.get_ref().clone(), config.get_ref().clone());
 
     match sync_service.sync_user_data(user_id).await {
         Ok(result) => {

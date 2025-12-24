@@ -14,6 +14,7 @@ pub struct ActivitiesQuery {
     pub to: Option<String>,
     pub limit: Option<i32>,
     pub offset: Option<i32>,
+    pub platform: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -65,11 +66,26 @@ pub async fn get_activities(
         .unwrap_or(true);
 
     // Get all active platform accounts for this user
-    let accounts = git_platform_account::Entity::find()
+    let mut accounts_query = git_platform_account::Entity::find()
         .filter(git_platform_account::Column::UserId.eq(user_id))
-        .filter(git_platform_account::Column::IsActive.eq(true))
-        .all(db.as_ref())
-        .await
+        .filter(git_platform_account::Column::IsActive.eq(true));
+
+    // Filter by platform type if specified
+    if let Some(platform_filter) = &query.platform {
+        let platform_type = match platform_filter.to_lowercase().as_str() {
+            "github" => git_platform_account::GitPlatform::GitHub,
+            "gitea" => git_platform_account::GitPlatform::Gitea,
+            "gitlab" => git_platform_account::GitPlatform::GitLab,
+            _ => {
+                return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": format!("Invalid platform filter: {}", platform_filter)
+                })));
+            }
+        };
+        accounts_query = accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
+    }
+
+    let accounts = accounts_query.all(db.as_ref()).await
         .map_err(|e| {
             log::error!("Database error: {}", e);
             actix_web::error::ErrorInternalServerError("Database error")
@@ -159,6 +175,7 @@ pub async fn get_activities(
 pub struct SyncActivitiesQuery {
     pub year: Option<i32>,
     pub all_years: Option<bool>,
+    pub platform_account_id: Option<String>,
 }
 
 /// POST /api/activities/sync
@@ -204,13 +221,47 @@ pub async fn sync_activities(
 
     log::info!("Syncing activities from {} to {}", from, to);
 
-    aggregation_service
-        .sync_user_activities(user_id, from, to)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to sync activities: {}", e);
-            actix_web::error::ErrorInternalServerError("Failed to sync activities")
+    // If platform_account_id is provided, sync only that specific platform
+    if let Some(account_id_str) = &query.platform_account_id {
+        let account_id = Uuid::parse_str(account_id_str).map_err(|e| {
+            actix_web::error::ErrorBadRequest(format!("Invalid platform account ID: {}", e))
         })?;
+
+        // Verify the account belongs to this user
+        let account = git_platform_account::Entity::find_by_id(account_id)
+            .one(db.as_ref())
+            .await
+            .map_err(|e| {
+                log::error!("Database error: {}", e);
+                actix_web::error::ErrorInternalServerError("Database error")
+            })?
+            .ok_or_else(|| actix_web::error::ErrorNotFound("Platform account not found"))?;
+
+        if account.user_id != user_id {
+            return Err(actix_web::error::ErrorForbidden("Not authorized"));
+        }
+
+        log::info!("Syncing activities for single platform account: {}", account_id);
+
+        aggregation_service
+            .sync_single_platform_activity(account_id, from, to)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to sync activities for platform {}: {}", account_id, e);
+                actix_web::error::ErrorInternalServerError(format!("Failed to sync activities: {}", e))
+            })?;
+    } else {
+        // Sync all platform accounts for the user
+        log::info!("Syncing activities for all platform accounts");
+
+        aggregation_service
+            .sync_user_activities(user_id, from, to)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to sync activities: {}", e);
+                actix_web::error::ErrorInternalServerError("Failed to sync activities")
+            })?;
+    }
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "Activities synced successfully"

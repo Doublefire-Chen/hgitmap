@@ -13,6 +13,7 @@ const Home = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+  const [platformFilter, setPlatformFilter] = useState('all'); // Shared platform filter state
 
   const handleLogout = () => {
     logout();
@@ -74,8 +75,8 @@ const Home = () => {
               <UserProfile />
             </aside>
             <div className="main-content">
-              <Heatmap />
-              <ActivityTimeline />
+              <Heatmap platformFilter={platformFilter} setPlatformFilter={setPlatformFilter} />
+              <ActivityTimeline platformFilter={platformFilter} />
             </div>
           </div>
         )}

@@ -4,7 +4,7 @@ import apiClient from '../api/client';
 import ActivityIcons from './ActivityIcons';
 import './ActivityTimeline.css';
 
-function ActivityTimeline() {
+function ActivityTimeline({ platformFilter = 'all' }) {
   const { user } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,8 +19,11 @@ function ActivityTimeline() {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 Loading activities with offset:', newOffset);
-      const data = await apiClient.getActivities(null, null, limit, newOffset);
+      console.log('🔍 Loading activities with offset:', newOffset, 'platform:', platformFilter);
+
+      // Pass platform filter to API (null if 'all')
+      const platform = platformFilter !== 'all' ? platformFilter : null;
+      const data = await apiClient.getActivities(null, null, limit, newOffset, platform);
       console.log('📦 Received activity data:', data);
 
       if (newOffset === 0) {
@@ -41,7 +44,7 @@ function ActivityTimeline() {
     } finally {
       setLoading(false);
     }
-  }, [limit]);
+  }, [limit, platformFilter]);
 
   useEffect(() => {
     loadActivities(0);

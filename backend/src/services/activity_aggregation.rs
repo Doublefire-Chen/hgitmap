@@ -1,6 +1,6 @@
 use crate::models::activity::{ActiveModel as ActivityActiveModel, ActivityType as DbActivityType};
 use crate::models::git_platform_account;
-use crate::services::git_platforms::{Activity, ActivityType, GitHubClient, GitPlatform, PlatformConfig};
+use crate::services::git_platforms::{Activity, ActivityType, GitHubClient, GiteaClient, GitPlatform, PlatformConfig};
 use crate::utils::encryption;
 use anyhow::Result;
 use chrono::{DateTime, Datelike, Utc};
@@ -46,6 +46,29 @@ impl ActivityAggregationService {
         Ok(())
     }
 
+    /// Fetch and store activities for a single specific platform account
+    pub async fn sync_single_platform_activity(
+        &self,
+        platform_account_id: Uuid,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<()> {
+        // Fetch the specific platform account
+        let account = git_platform_account::Entity::find_by_id(platform_account_id)
+            .one(&self.db)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Platform account not found"))?;
+
+        if !account.is_active {
+            return Err(anyhow::anyhow!("Platform account is not active"));
+        }
+
+        log::info!("Syncing activities for single platform account: {} ({})",
+            account.platform_username, account.id);
+
+        self.sync_platform_activities(&account, from, to).await
+    }
+
     /// Fetch and store activities for a specific platform account
     async fn sync_platform_activities(
         &self,
@@ -86,12 +109,56 @@ impl ActivityAggregationService {
 
         // Fetch contributions for accurate commit counts
         log::info!("Fetching contributions for commit counts...");
-        let contributions = platform_client
-            .fetch_contributions(&config, &account.platform_username, &token, from, to)
-            .await?;
+
+        // For GitHub, we need to fetch year by year due to 1-year API limit
+        let contributions = if matches!(account.platform_type, git_platform_account::GitPlatform::GitHub) {
+            let start_year = from.year();
+            let end_year = to.year();
+
+            let mut all_contributions = Vec::new();
+
+            for year in start_year..=end_year {
+                let year_from = if year == start_year {
+                    from // Use the actual start date for the first year
+                } else {
+                    chrono::NaiveDate::from_ymd_opt(year, 1, 1)
+                        .unwrap()
+                        .and_hms_opt(0, 0, 0)
+                        .unwrap()
+                        .and_utc()
+                };
+
+                let year_to = if year == end_year {
+                    to // Use the actual end date for the last year
+                } else {
+                    chrono::NaiveDate::from_ymd_opt(year, 12, 31)
+                        .unwrap()
+                        .and_hms_opt(23, 59, 59)
+                        .unwrap()
+                        .and_utc()
+                };
+
+                log::info!("Fetching contributions for year {}: {} to {}",
+                    year, year_from.format("%Y-%m-%d"), year_to.format("%Y-%m-%d"));
+
+                let year_contributions = platform_client
+                    .fetch_contributions(&config, &account.platform_username, &token, year_from, year_to)
+                    .await?;
+
+                log::info!("✅ Fetched {} contribution days for year {}", year_contributions.len(), year);
+                all_contributions.extend(year_contributions);
+            }
+
+            all_contributions
+        } else {
+            // For other platforms (Gitea, GitLab), fetch all at once
+            platform_client
+                .fetch_contributions(&config, &account.platform_username, &token, from, to)
+                .await?
+        };
 
         let contribution_count = contributions.len();
-        log::info!("Fetched {} contribution days", contribution_count);
+        log::info!("Fetched {} contribution days (total across all years)", contribution_count);
 
         // Aggregate contributions by MONTH (not just date) to avoid pagination issues
         use std::collections::HashMap;
@@ -372,10 +439,7 @@ impl ActivityAggregationService {
                 // TODO: Implement GitLab client
                 unimplemented!("GitLab not yet implemented")
             }
-            git_platform_account::GitPlatform::Gitea => {
-                // TODO: Implement Gitea client
-                unimplemented!("Gitea not yet implemented")
-            }
+            git_platform_account::GitPlatform::Gitea => Box::new(GiteaClient::new()),
         }
     }
 

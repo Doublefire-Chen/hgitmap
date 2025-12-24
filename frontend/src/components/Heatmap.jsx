@@ -2,13 +2,27 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../api/client';
 import './Heatmap.css';
 
-function Heatmap() {
+function Heatmap({ platformFilter = 'all', setPlatformFilter }) {
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('rolling'); // 'rolling' or 'year'
   const [year, setYear] = useState(new Date().getFullYear());
+  const [platforms, setPlatforms] = useState([]);
+
+  // Load available platforms on mount
+  useEffect(() => {
+    const loadPlatforms = async () => {
+      try {
+        const platformList = await apiClient.listPlatforms();
+        setPlatforms(platformList);
+      } catch (err) {
+        console.error('Failed to load platforms:', err);
+      }
+    };
+    loadPlatforms();
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -55,7 +69,7 @@ function Heatmap() {
       }
 
       const [contributionsData, statsData] = await Promise.all([
-        apiClient.getContributions(fromDate, toDate),
+        apiClient.getContributions(fromDate, toDate, platformFilter !== 'all' ? platformFilter : null),
         apiClient.getContributionStats(),
       ]);
 
@@ -70,7 +84,7 @@ function Heatmap() {
     } finally {
       setLoading(false);
     }
-  }, [viewMode, year]);
+  }, [viewMode, year, platformFilter]);
 
   useEffect(() => {
     loadData();
@@ -412,6 +426,29 @@ function Heatmap() {
 
         {/* Year Selector Sidebar */}
         <div className="year-selector-sidebar">
+          {/* Platform Filter */}
+          <div className="platform-filter-section">
+            <label htmlFor="platform-filter" className="platform-filter-label">
+              Filter by Platform:
+            </label>
+            <select
+              id="platform-filter"
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className="platform-filter-select"
+            >
+              <option value="all">All Platforms</option>
+              {platforms.map((platform) => (
+                <option key={platform.id} value={platform.platform}>
+                  {platform.platform.charAt(0).toUpperCase() + platform.platform.slice(1)}
+                  {platform.platform_url ? ` (${new URL(platform.platform_url).hostname})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="year-filter-divider"></div>
+
           <button
             className={`year-item ${viewMode === 'rolling' ? 'active' : ''}`}
             onClick={() => {

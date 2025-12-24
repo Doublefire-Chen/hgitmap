@@ -6,6 +6,7 @@ function SyncSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncingPlatform, setSyncingPlatform] = useState(null); // Track which platform is syncing
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -145,6 +146,23 @@ function SyncSettings() {
     }
   };
 
+  const handlePlatformActivitySync = async (platformId, allYears = false) => {
+    try {
+      setSyncingPlatform(platformId);
+      setError(null);
+      setSuccess(null);
+
+      await apiClient.syncActivities(allYears, null, platformId);
+
+      setSuccess(`Activities synced successfully for this platform!`);
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err) {
+      setError(err.message || 'Failed to sync activities');
+    } finally {
+      setSyncingPlatform(null);
+    }
+  };
+
   const formatDateTime = (dateStr) => {
     if (!dateStr) return 'Never';
     const date = new Date(dateStr);
@@ -273,8 +291,27 @@ function SyncSettings() {
                 </label>
               </div>
 
+              <div className="platform-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={() => handlePlatformActivitySync(platform.id, false)}
+                  disabled={syncingPlatform === platform.id}
+                  title="Sync current year activities"
+                >
+                  {syncingPlatform === platform.id ? 'Syncing...' : 'Sync Activities (Current Year)'}
+                </button>
+                <button
+                  className="btn-secondary"
+                  onClick={() => handlePlatformActivitySync(platform.id, true)}
+                  disabled={syncingPlatform === platform.id}
+                  title="Sync all years activities"
+                >
+                  {syncingPlatform === platform.id ? 'Syncing...' : 'Sync Activities (All Years)'}
+                </button>
+              </div>
+
               <p className="hint-text">
-                Select which types of data to sync from this platform. Only current year data will be synced to reduce resource consumption.
+                Select which types of data to sync from this platform. Use the buttons above to manually sync activities for this platform only.
               </p>
             </div>
           ))}
