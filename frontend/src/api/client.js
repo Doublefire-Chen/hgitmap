@@ -169,24 +169,6 @@ class ApiClient {
     return this.fetchWithAuth(url);
   }
 
-  async syncActivities(allYears = false, year = null, platformAccountId = null) {
-    const params = new URLSearchParams();
-    if (allYears) {
-      params.append('all_years', 'true');
-    } else if (year) {
-      params.append('year', year.toString());
-    }
-    if (platformAccountId) {
-      params.append('platform_account_id', platformAccountId);
-    }
-    const queryString = params.toString();
-    const url = queryString ? `/activities/sync?${queryString}` : '/activities/sync';
-
-    return this.fetchWithAuth(url, {
-      method: 'POST',
-    });
-  }
-
   // Settings
   async getSettings() {
     return this.fetchWithAuth('/settings');

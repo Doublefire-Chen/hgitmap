@@ -17,35 +17,6 @@ impl ActivityAggregationService {
         Self { db, encryption_key }
     }
 
-    /// Fetch and store activities for all platform accounts of a user
-    pub async fn sync_user_activities(
-        &self,
-        user_id: Uuid,
-        from: DateTime<Utc>,
-        to: DateTime<Utc>,
-    ) -> Result<()> {
-        // Fetch all active platform accounts for the user
-        let accounts = git_platform_account::Entity::find()
-            .filter(git_platform_account::Column::UserId.eq(user_id))
-            .filter(git_platform_account::Column::IsActive.eq(true))
-            .all(&self.db)
-            .await?;
-
-        log::info!("Syncing activities for {} platform accounts", accounts.len());
-
-        for account in accounts {
-            if let Err(e) = self.sync_platform_activities(&account, from, to).await {
-                log::error!(
-                    "Failed to sync activities for platform account {}: {}",
-                    account.id,
-                    e
-                );
-            }
-        }
-
-        Ok(())
-    }
-
     /// Fetch and store activities for a single specific platform account
     pub async fn sync_single_platform_activity(
         &self,

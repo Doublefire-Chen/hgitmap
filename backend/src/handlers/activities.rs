@@ -2,11 +2,8 @@ use actix_web::{web, HttpResponse, Responder};
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::TimeZone;
 
 use crate::models::{activity, git_platform_account, user_setting};
-use crate::services::activity_aggregation::ActivityAggregationService;
-use crate::utils::config::Config;
 
 #[derive(Debug, Deserialize)]
 pub struct ActivitiesQuery {
@@ -169,101 +166,4 @@ pub async fn get_activities(
         total: total as i32,
         has_more,
     }))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SyncActivitiesQuery {
-    pub year: Option<i32>,
-    pub all_years: Option<bool>,
-    pub platform_account_id: Option<String>,
-}
-
-/// POST /api/activities/sync
-/// Trigger manual sync of activities
-pub async fn sync_activities(
-    db: web::Data<DatabaseConnection>,
-    config: web::Data<Config>,
-    user_claims: web::ReqData<crate::middleware::auth::Claims>,
-    query: web::Query<SyncActivitiesQuery>,
-) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
-
-    let aggregation_service = ActivityAggregationService::new(
-        db.get_ref().clone(),
-        config.encryption_key.clone(),
-    );
-
-    // Determine date range based on query parameters
-    let (from, to) = if query.all_years.unwrap_or(false) {
-        // Sync from 2020 to now
-        let from = chrono::Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).single()
-            .ok_or_else(|| actix_web::error::ErrorBadRequest("Invalid date"))?;
-        let to = chrono::Utc::now();
-        (from, to)
-    } else if let Some(year) = query.year {
-        // Sync specific year
-        let from = chrono::Utc.with_ymd_and_hms(year, 1, 1, 0, 0, 0).single()
-            .ok_or_else(|| actix_web::error::ErrorBadRequest("Invalid year"))?;
-        let to = chrono::Utc.with_ymd_and_hms(year, 12, 31, 23, 59, 59).single()
-            .ok_or_else(|| actix_web::error::ErrorBadRequest("Invalid year"))?;
-        (from, to)
-    } else {
-        // Default: current year
-        let now = chrono::Utc::now();
-        let current_year = now.format("%Y").to_string().parse::<i32>().unwrap();
-        let from = chrono::Utc.with_ymd_and_hms(current_year, 1, 1, 0, 0, 0).single()
-            .ok_or_else(|| actix_web::error::ErrorBadRequest("Invalid date"))?;
-        let to = now;
-        (from, to)
-    };
-
-    log::info!("Syncing activities from {} to {}", from, to);
-
-    // If platform_account_id is provided, sync only that specific platform
-    if let Some(account_id_str) = &query.platform_account_id {
-        let account_id = Uuid::parse_str(account_id_str).map_err(|e| {
-            actix_web::error::ErrorBadRequest(format!("Invalid platform account ID: {}", e))
-        })?;
-
-        // Verify the account belongs to this user
-        let account = git_platform_account::Entity::find_by_id(account_id)
-            .one(db.as_ref())
-            .await
-            .map_err(|e| {
-                log::error!("Database error: {}", e);
-                actix_web::error::ErrorInternalServerError("Database error")
-            })?
-            .ok_or_else(|| actix_web::error::ErrorNotFound("Platform account not found"))?;
-
-        if account.user_id != user_id {
-            return Err(actix_web::error::ErrorForbidden("Not authorized"));
-        }
-
-        log::info!("Syncing activities for single platform account: {}", account_id);
-
-        aggregation_service
-            .sync_single_platform_activity(account_id, from, to)
-            .await
-            .map_err(|e| {
-                log::error!("Failed to sync activities for platform {}: {}", account_id, e);
-                actix_web::error::ErrorInternalServerError(format!("Failed to sync activities: {}", e))
-            })?;
-    } else {
-        // Sync all platform accounts for the user
-        log::info!("Syncing activities for all platform accounts");
-
-        aggregation_service
-            .sync_user_activities(user_id, from, to)
-            .await
-            .map_err(|e| {
-                log::error!("Failed to sync activities: {}", e);
-                actix_web::error::ErrorInternalServerError("Failed to sync activities")
-            })?;
-    }
-
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "message": "Activities synced successfully"
-    })))
 }

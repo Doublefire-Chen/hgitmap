@@ -213,12 +213,12 @@ pub async fn update_generation_settings(
                 })?;
 
             let has_any_sync_enabled = platforms.iter().any(|p| {
-                p.sync_profile || p.sync_contributions || p.sync_activities
+                p.sync_profile || p.sync_contributions
             });
 
             if !has_any_sync_enabled {
                 return Err(actix_web::error::ErrorBadRequest(
-                    "Cannot enable automatic sync: At least one platform must have at least one sync type enabled (Profile, Heatmap, or Activities)"
+                    "Cannot enable automatic sync: At least one platform must have at least one sync type enabled (Profile or Heatmap+Activities)"
                 ));
             }
         }

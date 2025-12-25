@@ -181,9 +181,10 @@ impl PlatformSyncService {
 
         // ========================================
         // PART 2: Sync activities using the same contribution data
+        // Activities always sync together with contributions
         // ========================================
-        if account.sync_activities {
-            log::info!("📅 Syncing activities for timeline...");
+        if account.sync_contributions {
+            log::info!("📅 Syncing activities for timeline (always syncs with contributions)...");
 
             let from = chrono::NaiveDateTime::new(start_date, chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()).and_utc();
             let to = chrono::NaiveDateTime::new(end_date, chrono::NaiveTime::from_hms_opt(23, 59, 59).unwrap()).and_utc();
@@ -192,7 +193,7 @@ impl PlatformSyncService {
                 log::error!("Failed to sync activities: {}", e);
             }
         } else {
-            log::debug!("Activity sync disabled for {}", account.platform_username);
+            log::debug!("Contribution sync disabled for {}, skipping activities (always synced together)", account.platform_username);
         }
 
         Ok(stats)

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import apiClient from '../api/client';
 import './SyncSettings.css';
 
 function SyncSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncingPlatform, setSyncingPlatform] = useState(null); // Track which platform is syncing
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -63,18 +62,6 @@ function SyncSettings() {
   };
 
   const handleSave = async () => {
-    // Validate that if auto sync is being enabled, at least one platform has at least one sync type enabled
-    if (settings.auto_generation_enabled) {
-      const hasAnySyncEnabled = platforms.some(p =>
-        p.sync_profile || p.sync_contributions || p.sync_activities
-      );
-
-      if (!hasAnySyncEnabled) {
-        setError('Cannot enable automatic sync: At least one platform must have at least one sync type enabled (Profile, Heatmap, or Activities)');
-        return;
-      }
-    }
-
     try {
       setSaving(true);
       setError(null);
@@ -94,58 +81,10 @@ function SyncSettings() {
     }
   };
 
-  const handleManualSync = async () => {
-    try {
-      setSyncing(true);
-      setError(null);
-      setSuccess(null);
-
-      const result = await apiClient.triggerSync();
-
-      if (result.success) {
-        setSuccess(result.message);
-      } else {
-        setError(result.message);
-      }
-
-      // Reload sync status
-      await loadSyncStatus();
-
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handlePlatformSync = async (platformId, platformName) => {
-    try {
-      setSyncingPlatform(platformId);
-      setError(null);
-      setSuccess(null);
-
-      // Sync current year by default (user can change this later)
-      await apiClient.syncPlatform(platformId, false, null);
-
-      setSuccess(`Successfully synced all data for ${platformName}!`);
-
-      // Reload platforms to update last_synced_at
-      await loadPlatforms();
-      await loadSyncStatus();
-
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      setError(`Failed to sync ${platformName}: ${err.message}`);
-    } finally {
-      setSyncingPlatform(null);
-    }
-  };
-
   const handlePlatformSyncPreferenceChange = async (platformId, preferences) => {
     // Validate that at least one sync type is enabled
-    if (!preferences.sync_profile && !preferences.sync_contributions && !preferences.sync_activities) {
-      setError('At least one sync type must be enabled (Profile, Heatmap, or Activities)');
+    if (!preferences.sync_profile && !preferences.sync_contributions) {
+      setError('At least one sync type must be enabled (Profile or Heatmap+Activities)');
       setTimeout(() => setError(null), 5000);
       return;
     }
@@ -182,14 +121,22 @@ function SyncSettings() {
   return (
     <div className="sync-settings-container">
       <div className="settings-header">
-        <h1>Sync Settings</h1>
-        <p className="subtitle">Configure automatic syncing of your git platform data (heatmap and activities are synced together)</p>
+        <div className="breadcrumb">
+          <Link to="/" className="breadcrumb-link">Dashboard</Link>
+          <span className="breadcrumb-separator">/</span>
+          <span className="breadcrumb-current">Scheduled Sync Settings</span>
+        </div>
+        <h1>Scheduled Sync Settings</h1>
+        <p className="subtitle">Configure automatic background syncing of your git platform data</p>
+        <p className="hint-text">
+          💡 For manual syncing, go to <Link to="/" className="inline-link">Dashboard → Platforms</Link>
+        </p>
       </div>
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
 
-      {/* Sync Status */}
+      {/* Sync Status - Read Only */}
       {syncStatus && (
         <section className="status-section">
           <h2>Sync Status</h2>
@@ -206,7 +153,7 @@ function SyncSettings() {
             </div>
             <div className="status-item">
               <label>Next Sync</label>
-              <span>{formatDateTime(syncStatus.next_sync)}</span>
+              <span>{syncStatus.next_scheduled_generation_at ? formatDateTime(syncStatus.next_scheduled_generation_at) : formatDateTime(syncStatus.next_sync)}</span>
             </div>
             <div className="status-item">
               <label>Sync Interval</label>
@@ -216,7 +163,8 @@ function SyncSettings() {
 
           {syncStatus.platform_accounts && syncStatus.platform_accounts.length > 0 && (
             <div className="platforms-status">
-              <h3>Platform Accounts</h3>
+              <h3>Connected Platforms</h3>
+              <p className="hint-text">These platforms will be included in automatic syncing</p>
               <div className="platforms-list">
                 {syncStatus.platform_accounts.map((platform, idx) => (
                   <div key={idx} className="platform-item">
@@ -231,43 +179,24 @@ function SyncSettings() {
               </div>
             </div>
           )}
-
-          <button
-            className="btn-primary sync-button"
-            onClick={handleManualSync}
-            disabled={syncing}
-            title="Sync profile, heatmap, and activities for all connected platforms"
-          >
-            {syncing ? 'Syncing...' : 'Sync All Data Now'}
-          </button>
         </section>
       )}
 
       {/* Per-Platform Sync Preferences */}
       {platforms && platforms.length > 0 && (
         <section className="settings-section">
-          <h2>Platform Sync Preferences</h2>
-          <p className="subtitle">Control what data to sync for each connected platform</p>
+          <h2>What to Sync</h2>
+          <p className="subtitle">Configure which data types to sync for each platform during automatic syncing</p>
 
           {platforms.map((platform) => (
             <div key={platform.id} className="platform-sync-preferences">
-              <div className="platform-header">
-                <div className="platform-info">
-                  <strong>{platform.platform}</strong>: {platform.platform_username}
-                  {platform.last_synced_at && (
-                    <span className="last-synced">
-                      {' '}• Last synced: {formatDateTime(platform.last_synced_at)}
-                    </span>
-                  )}
-                </div>
-                <button
-                  className="btn-primary btn-small"
-                  onClick={() => handlePlatformSync(platform.id, `${platform.platform}/${platform.platform_username}`)}
-                  disabled={syncingPlatform === platform.id}
-                  title="Sync all enabled data types (profile, heatmap, activities) for this platform"
-                >
-                  {syncingPlatform === platform.id ? 'Syncing...' : 'Sync Now'}
-                </button>
+              <div className="platform-info">
+                <strong>{platform.platform}</strong>: {platform.platform_username}
+                {platform.last_synced_at && (
+                  <span className="last-synced">
+                    {' '}• Last synced: {formatDateTime(platform.last_synced_at)}
+                  </span>
+                )}
               </div>
 
               <div className="sync-checkboxes">
@@ -278,7 +207,6 @@ function SyncSettings() {
                     onChange={(e) => handlePlatformSyncPreferenceChange(platform.id, {
                       sync_profile: e.target.checked,
                       sync_contributions: platform.sync_contributions,
-                      sync_activities: platform.sync_activities,
                     })}
                   />
                   <span>Profile</span>
@@ -292,39 +220,21 @@ function SyncSettings() {
                     onChange={(e) => handlePlatformSyncPreferenceChange(platform.id, {
                       sync_profile: platform.sync_profile,
                       sync_contributions: e.target.checked,
-                      sync_activities: platform.sync_activities,
                     })}
                   />
-                  <span>Heatmap</span>
-                  <span className="hint-inline">(daily contribution counts)</span>
-                </label>
-
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={platform.sync_activities}
-                    onChange={(e) => handlePlatformSyncPreferenceChange(platform.id, {
-                      sync_profile: platform.sync_profile,
-                      sync_contributions: platform.sync_contributions,
-                      sync_activities: e.target.checked,
-                    })}
-                  />
-                  <span>Activities</span>
-                  <span className="hint-inline">(timeline events)</span>
+                  <span>Heatmap + Activities</span>
+                  <span className="hint-inline">(contributions and timeline events)</span>
                 </label>
               </div>
-
-              <p className="hint-text">
-                Select which types of data to sync from this platform, then click "Sync Now" to fetch the latest data.
-              </p>
             </div>
           ))}
         </section>
       )}
 
-      {/* Settings Form */}
+      {/* Auto Sync Configuration Form */}
       <section className="settings-section">
-        <h2>Auto Sync Configuration</h2>
+        <h2>When to Sync</h2>
+        <p className="subtitle">Configure automatic background sync schedule</p>
 
         <div className="form-group">
           <label className="checkbox-label">
@@ -333,16 +243,16 @@ function SyncSettings() {
               checked={settings.auto_generation_enabled}
               onChange={(e) => setSettings({ ...settings, auto_generation_enabled: e.target.checked })}
             />
-            <span>Enable automatic sync</span>
+            <span>Enable automatic background sync</span>
           </label>
           <p className="hint-text">
-            When enabled, your git platform data will be automatically synced based on the interval below
+            When enabled, your git platform data will be automatically synced in the background based on the interval below
           </p>
         </div>
 
         {settings.auto_generation_enabled && (
           <div className="form-group">
-            <label>Sync Interval (minutes)</label>
+            <label>Sync Interval</label>
             <select
               value={settings.update_interval_minutes}
               onChange={(e) => setSettings({ ...settings, update_interval_minutes: parseInt(e.target.value) })}
@@ -357,13 +267,13 @@ function SyncSettings() {
               <option value={1440}>Once a day</option>
             </select>
             <p className="hint-text">
-              How often to automatically fetch new contribution data from your connected platforms
+              How often to automatically fetch new data from your connected platforms (syncs current year only)
             </p>
           </div>
         )}
 
         <div className="form-group">
-          <label>Date Range (days)</label>
+          <label>Heatmap Date Range</label>
           <input
             type="number"
             value={settings.date_range_days}
@@ -372,7 +282,7 @@ function SyncSettings() {
             max="730"
           />
           <p className="hint-text">
-            Number of days to include in your heatmap (30-730 days)
+            Number of days to include in your heatmap visualization (30-730 days)
           </p>
         </div>
 
@@ -398,6 +308,9 @@ function SyncSettings() {
           >
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
+          <Link to="/" className="btn-secondary">
+            Back to Dashboard
+          </Link>
         </div>
       </section>
     </div>

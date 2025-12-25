@@ -18,8 +18,7 @@ pub struct ConnectPlatformRequest {
 #[derive(Debug, Deserialize)]
 pub struct UpdateSyncPreferencesRequest {
     pub sync_profile: bool,
-    pub sync_contributions: bool,
-    pub sync_activities: bool,
+    pub sync_contributions: bool, // When enabled, syncs both contributions and activities
 }
 
 #[derive(Debug, Serialize)]
@@ -43,8 +42,7 @@ pub struct PlatformAccountResponse {
     pub following_count: Option<i32>,
     // Sync preferences
     pub sync_profile: bool,
-    pub sync_contributions: bool,
-    pub sync_activities: bool,
+    pub sync_contributions: bool, // When enabled, syncs both contributions and activities
 }
 
 #[derive(Debug, Serialize)]
@@ -182,7 +180,6 @@ pub async fn connect_platform(
             following_count: Set(None),
             sync_profile: Set(true),
             sync_contributions: Set(true),
-            sync_activities: Set(true),
         };
 
         git_platform_account::Entity::insert(new_account)
@@ -219,7 +216,6 @@ pub async fn connect_platform(
         following_count: account.following_count,
         sync_profile: account.sync_profile,
         sync_contributions: account.sync_contributions,
-        sync_activities: account.sync_activities,
     }))
 }
 
@@ -271,7 +267,6 @@ pub async fn list_platforms(
                 following_count: account.following_count,
                 sync_profile: account.sync_profile,
                 sync_contributions: account.sync_contributions,
-                sync_activities: account.sync_activities,
             }
         })
         .collect();
@@ -356,9 +351,9 @@ pub async fn update_sync_preferences(
     }
 
     // Validate that at least one sync type is enabled
-    if !payload.sync_profile && !payload.sync_contributions && !payload.sync_activities {
+    if !payload.sync_profile && !payload.sync_contributions {
         return Err(actix_web::error::ErrorBadRequest(
-            "At least one sync type must be enabled (Profile, Heatmap, or Activities)"
+            "At least one sync type must be enabled (Profile or Heatmap+Activities)"
         ));
     }
 
@@ -366,7 +361,6 @@ pub async fn update_sync_preferences(
     let mut account: git_platform_account::ActiveModel = account.into();
     account.sync_profile = Set(payload.sync_profile);
     account.sync_contributions = Set(payload.sync_contributions);
-    account.sync_activities = Set(payload.sync_activities);
     account.updated_at = Set(chrono::Utc::now());
 
     let updated_account = account.update(db.as_ref()).await.map_err(|e| {
@@ -399,7 +393,6 @@ pub async fn update_sync_preferences(
         following_count: updated_account.following_count,
         sync_profile: updated_account.sync_profile,
         sync_contributions: updated_account.sync_contributions,
-        sync_activities: updated_account.sync_activities,
     }))
 }
 
@@ -842,7 +835,7 @@ pub async fn sync_platform(
         }
     }
 
-    // Sync activities if enabled
+    // Sync activities if contributions are enabled (they always sync together)
     let account_for_activities = git_platform_account::Entity::find_by_id(account_id)
         .one(db.as_ref())
         .await
@@ -852,8 +845,8 @@ pub async fn sync_platform(
         })?
         .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
 
-    if account_for_activities.sync_activities {
-        log::info!("📅 [Sync] Syncing activities for timeline...");
+    if account_for_activities.sync_contributions {
+        log::info!("📅 [Sync] Syncing activities for timeline (always syncs with contributions)...");
 
         // Use the activity aggregation service
         use crate::services::activity_aggregation::ActivityAggregationService;
@@ -889,7 +882,7 @@ pub async fn sync_platform(
             }
         }
     } else {
-        log::debug!("[Sync] Activity sync disabled for this account");
+        log::debug!("[Sync] Contribution sync disabled, skipping activities (always synced together)");
     }
 
     // Update last_synced_at timestamp

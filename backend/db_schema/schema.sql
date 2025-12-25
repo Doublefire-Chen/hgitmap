@@ -41,9 +41,8 @@ CREATE TABLE git_platform_accounts (
     followers_count INTEGER DEFAULT 0,
     following_count INTEGER DEFAULT 0,
     -- Sync preferences (per-platform control)
-    sync_profile BOOLEAN DEFAULT true, -- Enable/disable syncing profile data
-    sync_contributions BOOLEAN DEFAULT true, -- Enable/disable syncing contribution/heatmap data
-    sync_activities BOOLEAN DEFAULT true, -- Enable/disable syncing activity timeline data
+    sync_profile BOOLEAN DEFAULT true, -- Enable/disable syncing profile data (avatar, bio, etc.)
+    sync_contributions BOOLEAN DEFAULT true, -- Enable/disable syncing contributions and activities together
     UNIQUE(user_id, platform_type, platform_username, platform_url)
 );
 

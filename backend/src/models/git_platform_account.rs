@@ -38,8 +38,7 @@ pub struct Model {
     pub following_count: Option<i32>,
     // Sync preferences
     pub sync_profile: bool,
-    pub sync_contributions: bool,
-    pub sync_activities: bool,
+    pub sync_contributions: bool, // When enabled, syncs both contributions and activities
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
