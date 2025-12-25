@@ -119,6 +119,29 @@ function SyncSettings() {
     }
   };
 
+  const handlePlatformSync = async (platformId, platformName) => {
+    try {
+      setSyncingPlatform(platformId);
+      setError(null);
+      setSuccess(null);
+
+      // Sync current year by default (user can change this later)
+      await apiClient.syncPlatform(platformId, false, null);
+
+      setSuccess(`Successfully synced all data for ${platformName}!`);
+
+      // Reload platforms to update last_synced_at
+      await loadPlatforms();
+      await loadSyncStatus();
+
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err) {
+      setError(`Failed to sync ${platformName}: ${err.message}`);
+    } finally {
+      setSyncingPlatform(null);
+    }
+  };
+
   const handlePlatformSyncPreferenceChange = async (platformId, preferences) => {
     // Validate that at least one sync type is enabled
     if (!preferences.sync_profile && !preferences.sync_contributions && !preferences.sync_activities) {
@@ -146,23 +169,6 @@ function SyncSettings() {
     }
   };
 
-  const handlePlatformActivitySync = async (platformId, allYears = false) => {
-    try {
-      setSyncingPlatform(platformId);
-      setError(null);
-      setSuccess(null);
-
-      await apiClient.syncActivities(allYears, null, platformId);
-
-      setSuccess(`Activities synced successfully for this platform!`);
-      setTimeout(() => setSuccess(null), 5000);
-    } catch (err) {
-      setError(err.message || 'Failed to sync activities');
-    } finally {
-      setSyncingPlatform(null);
-    }
-  };
-
   const formatDateTime = (dateStr) => {
     if (!dateStr) return 'Never';
     const date = new Date(dateStr);
@@ -177,7 +183,7 @@ function SyncSettings() {
     <div className="sync-settings-container">
       <div className="settings-header">
         <h1>Sync Settings</h1>
-        <p className="subtitle">Configure automatic syncing of your git platform data</p>
+        <p className="subtitle">Configure automatic syncing of your git platform data (heatmap and activities are synced together)</p>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -230,8 +236,9 @@ function SyncSettings() {
             className="btn-primary sync-button"
             onClick={handleManualSync}
             disabled={syncing}
+            title="Sync profile, heatmap, and activities for all connected platforms"
           >
-            {syncing ? 'Syncing...' : 'Sync Now'}
+            {syncing ? 'Syncing...' : 'Sync All Data Now'}
           </button>
         </section>
       )}
@@ -247,7 +254,20 @@ function SyncSettings() {
               <div className="platform-header">
                 <div className="platform-info">
                   <strong>{platform.platform}</strong>: {platform.platform_username}
+                  {platform.last_synced_at && (
+                    <span className="last-synced">
+                      {' '}• Last synced: {formatDateTime(platform.last_synced_at)}
+                    </span>
+                  )}
                 </div>
+                <button
+                  className="btn-primary btn-small"
+                  onClick={() => handlePlatformSync(platform.id, `${platform.platform}/${platform.platform_username}`)}
+                  disabled={syncingPlatform === platform.id}
+                  title="Sync all enabled data types (profile, heatmap, activities) for this platform"
+                >
+                  {syncingPlatform === platform.id ? 'Syncing...' : 'Sync Now'}
+                </button>
               </div>
 
               <div className="sync-checkboxes">
@@ -262,6 +282,7 @@ function SyncSettings() {
                     })}
                   />
                   <span>Profile</span>
+                  <span className="hint-inline">(avatar, bio, followers)</span>
                 </label>
 
                 <label className="checkbox-label">
@@ -275,6 +296,7 @@ function SyncSettings() {
                     })}
                   />
                   <span>Heatmap</span>
+                  <span className="hint-inline">(daily contribution counts)</span>
                 </label>
 
                 <label className="checkbox-label">
@@ -288,30 +310,12 @@ function SyncSettings() {
                     })}
                   />
                   <span>Activities</span>
+                  <span className="hint-inline">(timeline events)</span>
                 </label>
               </div>
 
-              <div className="platform-actions">
-                <button
-                  className="btn-secondary"
-                  onClick={() => handlePlatformActivitySync(platform.id, false)}
-                  disabled={syncingPlatform === platform.id}
-                  title="Sync current year activities"
-                >
-                  {syncingPlatform === platform.id ? 'Syncing...' : 'Sync Activities (Current Year)'}
-                </button>
-                <button
-                  className="btn-secondary"
-                  onClick={() => handlePlatformActivitySync(platform.id, true)}
-                  disabled={syncingPlatform === platform.id}
-                  title="Sync all years activities"
-                >
-                  {syncingPlatform === platform.id ? 'Syncing...' : 'Sync Activities (All Years)'}
-                </button>
-              </div>
-
               <p className="hint-text">
-                Select which types of data to sync from this platform. Use the buttons above to manually sync activities for this platform only.
+                Select which types of data to sync from this platform, then click "Sync Now" to fetch the latest data.
               </p>
             </div>
           ))}

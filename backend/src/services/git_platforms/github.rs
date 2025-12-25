@@ -747,6 +747,145 @@ impl GitHubClient {
 
         Ok(all_activities)
     }
+
+    /// Search for commits on specific dates using GitHub REST API
+    /// This is used as a fallback when commitContributionsByRepository doesn't return data
+    async fn search_commits_for_dates(
+        &self,
+        config: &PlatformConfig,
+        username: &str,
+        token: &str,
+        dates: &[chrono::NaiveDate],
+    ) -> Result<HashMap<chrono::NaiveDate, Vec<String>>> {
+        let client = create_http_client();
+        let mut date_repos: HashMap<chrono::NaiveDate, Vec<String>> = HashMap::new();
+
+        log::info!("🔍 Searching for commits on {} dates with missing repository info", dates.len());
+
+        // Group consecutive dates to minimize API calls
+        let mut date_ranges: Vec<(chrono::NaiveDate, chrono::NaiveDate)> = Vec::new();
+        let mut sorted_dates = dates.to_vec();
+        sorted_dates.sort();
+
+        for date in &sorted_dates {
+            if let Some(last_range) = date_ranges.last_mut() {
+                // If this date is consecutive to the last range, extend it
+                if *date == last_range.1 + chrono::Duration::days(1) {
+                    last_range.1 = *date;
+                    continue;
+                }
+            }
+            // Start a new range
+            date_ranges.push((*date, *date));
+        }
+
+        log::info!("📅 Grouped {} dates into {} ranges for search", dates.len(), date_ranges.len());
+
+        // Search each date range using REST API
+        for (from_date, to_date) in date_ranges {
+            let from_str = from_date.format("%Y-%m-%d").to_string();
+            let to_str = to_date.format("%Y-%m-%d").to_string();
+
+            // GitHub REST API search for commits
+            // https://docs.github.com/en/rest/search/search#search-commits
+            let search_query = format!("author:{} committer-date:{}..{}", username, from_str, to_str);
+
+            log::debug!("🔎 REST API Search: {}", search_query);
+
+            let mut page = 1;
+            let per_page = 100;
+
+            loop {
+                let url = format!(
+                    "{}/search/commits?q={}&per_page={}&page={}",
+                    config.api_base_url,
+                    urlencoding::encode(&search_query),
+                    per_page,
+                    page
+                );
+
+                let response = client
+                    .get(&url)
+                    .header("Authorization", format!("Bearer {}", token))
+                    .header("User-Agent", "hgitmap/0.1.0")
+                    .header("Accept", "application/vnd.github.cloak-preview+json") // Required for commit search
+                    .send()
+                    .await?;
+
+                if !response.status().is_success() {
+                    let status = response.status();
+                    let error_body = response.text().await.unwrap_or_else(|_| "Unable to read error".to_string());
+                    log::warn!("REST API search failed: status {} - Error: {}", status, error_body);
+                    break;
+                }
+
+                let search_result: serde_json::Value = response.json().await?;
+
+                let items = search_result
+                    .get("items")
+                    .and_then(|v| v.as_array());
+
+                if let Some(commits) = items {
+                    if commits.is_empty() {
+                        break;
+                    }
+
+                    for commit in commits {
+                        if let (Some(commit_obj), Some(repo)) = (
+                            commit.get("commit"),
+                            commit.get("repository"),
+                        ) {
+                            // Get commit date
+                            if let Some(committer_date_str) = commit_obj
+                                .get("committer")
+                                .and_then(|c| c.get("date"))
+                                .and_then(|d| d.as_str())
+                            {
+                                if let Ok(commit_date) = chrono::DateTime::parse_from_rfc3339(committer_date_str) {
+                                    let date = commit_date.naive_utc().date();
+
+                                    // Get repository name
+                                    if let Some(repo_full_name) = repo.get("full_name").and_then(|n| n.as_str()) {
+                                        let entry = date_repos.entry(date).or_insert_with(Vec::new);
+                                        if !entry.contains(&repo_full_name.to_string()) {
+                                            entry.push(repo_full_name.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    log::debug!("📄 Page {}: Found {} commits", page, commits.len());
+
+                    // Check if there are more pages
+                    let total_count = search_result
+                        .get("total_count")
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0);
+
+                    if (page * per_page) as i64 >= total_count || page >= 10 {
+                        break;
+                    }
+
+                    page += 1;
+                } else {
+                    log::debug!("No commits found in search response");
+                    break;
+                }
+
+                // Be nice to the API - small delay between pages
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            }
+
+            // Be nice to the API - delay between searches
+            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        }
+
+        log::info!("✅ Search found repository names for {} dates", date_repos.len());
+
+        Ok(date_repos)
+    }
 }
 
 #[async_trait]
@@ -827,11 +966,11 @@ impl GitPlatform for GitHubClient {
 
         // Now fetch repository data with pagination to get complete privacy info
         use std::collections::HashMap;
-        let mut date_privacy_map: HashMap<chrono::NaiveDate, (bool, Vec<String>)> = HashMap::new();
+        let mut date_privacy_map: HashMap<chrono::NaiveDate, (bool, Vec<(String, i32)>)> = HashMap::new();
 
         let mut cursor: Option<String> = None;
         let mut page_num = 0;
-        let max_pages = 10; // Fetch up to 10 pages (1000 contribution days total)
+        let max_pages = 25; // Increased from 10 to 25 (2500 contribution days total)
 
         loop {
             page_num += 1;
@@ -950,9 +1089,8 @@ impl GitPlatform for GitHubClient {
                         if is_private {
                             entry.0 = true;
                         }
-                        if !entry.1.contains(&repo_name) {
-                            entry.1.push(repo_name.clone());
-                        }
+                        // Store repo name WITH commit count
+                        entry.1.push((repo_name.clone(), node.commit_count));
                     }
                 }
             }
@@ -971,31 +1109,104 @@ impl GitPlatform for GitHubClient {
 
         // Convert calendar data to our Contribution format, enriched with privacy info
         let mut contributions = Vec::new();
+        let mut dates_without_repo: Vec<chrono::NaiveDate> = Vec::new();
+
         for week in calendar.weeks {
             for day in week.contribution_days {
                 if day.contribution_count > 0 {
                     let date = chrono::NaiveDate::parse_from_str(&day.date, "%Y-%m-%d")
                         .map_err(|e| anyhow!("Failed to parse date: {}", e))?;
 
-                    // Check if we have privacy info for this date
-                    let (is_private, repo_names) = date_privacy_map.get(&date)
-                        .map(|(priv_flag, repos)| (*priv_flag, Some(repos.join(", "))))
-                        .unwrap_or((false, None)); // Default to public if no repo data available
+                    // Check if we have repo data for this date
+                    if let Some((is_private, repos_with_counts)) = date_privacy_map.get(&date) {
+                        // We have repository data for this date
+                        // Use the calendar's total count as source of truth, but attribute to repositories
 
-                    contributions.push(Contribution {
-                        date,
-                        count: day.contribution_count,
-                        repository_name: repo_names,
-                        is_private,
-                        contribution_type: ContributionType::Commit,
-                    });
+                        // Calculate how many commits we tracked via repos
+                        let tracked_commits: i32 = repos_with_counts.iter().map(|(_, count)| count).sum();
+
+                        // Calendar count includes commits + PRs + issues + reviews
+                        // If calendar count > tracked commits, there are non-commit contributions
+                        let non_commit_contributions = day.contribution_count.saturating_sub(tracked_commits);
+
+                        // Create separate contribution for each repository
+                        for (repo_name, commit_count) in repos_with_counts {
+                            contributions.push(Contribution {
+                                date,
+                                count: *commit_count,
+                                repository_name: Some(repo_name.clone()),
+                                is_private: *is_private,
+                                contribution_type: ContributionType::Commit,
+                            });
+                        }
+
+                        // If there are non-commit contributions, add them as a separate entry
+                        // This ensures the total matches GitHub's calendar
+                        if non_commit_contributions > 0 {
+                            log::debug!("📊 Date {}: calendar shows {} total, tracked {} commits, adding {} non-commit contributions",
+                                date, day.contribution_count, tracked_commits, non_commit_contributions);
+                            // Use NULL for repository since these are non-commit contributions (PRs, issues, reviews)
+                            // This avoids violating the unique constraint
+                            contributions.push(Contribution {
+                                date,
+                                count: non_commit_contributions,
+                                repository_name: None,
+                                is_private: *is_private,
+                                contribution_type: ContributionType::Commit, // Mixed type
+                            });
+                        }
+                    } else {
+                        // No repo info - create one contribution with NULL
+                        contributions.push(Contribution {
+                            date,
+                            count: day.contribution_count,
+                            repository_name: None,
+                            is_private: false,
+                            contribution_type: ContributionType::Commit,
+                        });
+                        dates_without_repo.push(date);
+                    }
+                }
+            }
+        }
+
+        // Use Search API as fallback for dates without repository info
+        if !dates_without_repo.is_empty() {
+            log::info!("🔍 {} dates have contributions but no repository info, using Search API fallback", dates_without_repo.len());
+
+            match self.search_commits_for_dates(config, username, token, &dates_without_repo).await {
+                Ok(search_results) => {
+                    // Update contributions with search results
+                    // For dates with multiple repos found, we can't split the count accurately,
+                    // so we'll create separate contributions with the full count for now
+                    let mut updated_count = 0;
+                    for contrib in &mut contributions {
+                        if contrib.repository_name.is_none() {
+                            if let Some(repos) = search_results.get(&contrib.date) {
+                                if !repos.is_empty() {
+                                    // Found repo(s) for this date
+                                    // Use the first repo found (best guess)
+                                    contrib.repository_name = Some(repos[0].clone());
+                                    updated_count += 1;
+                                }
+                            }
+                        }
+                    }
+                    log::info!("✅ Search API found repository names for {} / {} dates", updated_count, dates_without_repo.len());
+                }
+                Err(e) => {
+                    log::warn!("⚠️  Search API fallback failed: {}", e);
                 }
             }
         }
 
         let total: i32 = contributions.iter().map(|c| c.count).sum();
+        let with_repos = contributions.iter().filter(|c| c.repository_name.is_some()).count();
+        let without_repos = contributions.len() - with_repos;
+
         log::info!("📊 Collected {} contributions across {} days (calendar total: {})",
             total, contributions.len(), calendar.total_contributions);
+        log::info!("📊 Repository attribution: {} with repos, {} without", with_repos, without_repos);
 
         Ok(contributions)
     }

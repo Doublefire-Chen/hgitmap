@@ -2,10 +2,12 @@ use anyhow::{Context, Result};
 use chrono::{Datelike, Utc};
 use sea_orm::*;
 use uuid::Uuid;
+use std::collections::HashMap;
+use serde_json::json;
 
-use crate::models::{contribution, git_platform_account, heatmap_theme};
+use crate::models::{contribution, git_platform_account, heatmap_theme, activity};
 use crate::services::heatmap_generator::HeatmapGenerator;
-use crate::services::git_platforms::{github::GitHubClient, gitea::GiteaClient, GitPlatform, PlatformConfig};
+use crate::services::git_platforms::{github::GitHubClient, gitea::GiteaClient, GitPlatform, PlatformConfig, Contribution, Activity, ActivityType};
 use crate::utils::{config::Config, encryption};
 
 pub struct PlatformSyncService {
@@ -124,7 +126,7 @@ impl PlatformSyncService {
         Ok(result)
     }
 
-    /// Sync a single platform account
+    /// Sync a single platform account (unified: contributions + activities)
     async fn sync_platform_account(
         &self,
         account: &git_platform_account::Model,
@@ -136,45 +138,61 @@ impl PlatformSyncService {
             updated: 0,
         };
 
-        // Generate mock data for now (replace with actual API calls)
+        // ========================================
+        // STEP 1: Delete existing contributions in the date range
+        // ========================================
+        log::info!("🗑️  Deleting existing contributions from {} to {}", start_date, end_date);
+
+        let deleted = contribution::Entity::delete_many()
+            .filter(contribution::Column::GitPlatformAccountId.eq(account.id))
+            .filter(contribution::Column::ContributionDate.gte(start_date))
+            .filter(contribution::Column::ContributionDate.lte(end_date))
+            .exec(&self.db)
+            .await?;
+
+        log::info!("🗑️  Deleted {} existing contributions in date range", deleted.rows_affected);
+
+        // ========================================
+        // STEP 2: Fetch fresh contributions from platform
+        // ========================================
         let contributions = self.fetch_contributions_from_platform(account, start_date, end_date).await?;
 
-        // Update contributions in database
-        for (date, count) in contributions {
-            // Check if contribution already exists
-            let existing = contribution::Entity::find()
-                .filter(contribution::Column::GitPlatformAccountId.eq(account.id))
-                .filter(contribution::Column::ContributionDate.eq(date))
-                .one(&self.db)
-                .await?;
+        log::info!("📊 Fetched {} fresh contribution records", contributions.len());
 
-            match existing {
-                Some(existing_contrib) => {
-                    // Update if count changed
-                    if existing_contrib.count != count {
-                        let mut active_contrib: contribution::ActiveModel = existing_contrib.into();
-                        active_contrib.count = Set(count);
-                        active_contrib.updated_at = Set(Utc::now());
-                        active_contrib.update(&self.db).await?;
-                        stats.updated += 1;
-                    }
-                }
-                None => {
-                    // Insert new contribution
-                    let new_contrib = contribution::ActiveModel {
-                        id: Set(Uuid::new_v4()),
-                        git_platform_account_id: Set(account.id),
-                        contribution_date: Set(date),
-                        count: Set(count),
-                        repository_name: Set(None),
-                        is_private_repo: Set(false),
-                        created_at: Set(Utc::now()),
-                        updated_at: Set(Utc::now()),
-                    };
-                    contribution::Entity::insert(new_contrib).exec(&self.db).await?;
-                    stats.added += 1;
-                }
+        // ========================================
+        // STEP 3: Insert all fresh contributions
+        // ========================================
+        for contrib in &contributions {
+            let new_contrib = contribution::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                git_platform_account_id: Set(account.id),
+                contribution_date: Set(contrib.date),
+                count: Set(contrib.count),
+                repository_name: Set(contrib.repository_name.clone()),
+                is_private_repo: Set(contrib.is_private),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            };
+            contribution::Entity::insert(new_contrib).exec(&self.db).await?;
+            stats.added += 1;
+        }
+
+        log::info!("✅ Inserted {} fresh contributions", stats.added);
+
+        // ========================================
+        // PART 2: Sync activities using the same contribution data
+        // ========================================
+        if account.sync_activities {
+            log::info!("📅 Syncing activities for timeline...");
+
+            let from = chrono::NaiveDateTime::new(start_date, chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()).and_utc();
+            let to = chrono::NaiveDateTime::new(end_date, chrono::NaiveTime::from_hms_opt(23, 59, 59).unwrap()).and_utc();
+
+            if let Err(e) = self.sync_activities_from_contributions(account, &contributions, from, to).await {
+                log::error!("Failed to sync activities: {}", e);
             }
+        } else {
+            log::debug!("Activity sync disabled for {}", account.platform_username);
         }
 
         Ok(stats)
@@ -226,7 +244,7 @@ impl PlatformSyncService {
         account: &git_platform_account::Model,
         start_date: chrono::NaiveDate,
         end_date: chrono::NaiveDate,
-    ) -> Result<Vec<(chrono::NaiveDate, i32)>> {
+    ) -> Result<Vec<Contribution>> {
         // Decrypt access token
         let access_token = account.access_token.as_ref()
             .context("No access token found")?;
@@ -273,15 +291,9 @@ impl PlatformSyncService {
             }
         };
 
-        // Convert to (date, count) tuples
-        let result: Vec<(chrono::NaiveDate, i32)> = contributions
-            .iter()
-            .map(|c| (c.date, c.count))
-            .collect();
+        log::info!("Fetched {} contribution days for {}", contributions.len(), account.platform_username);
 
-        log::info!("Fetched {} contribution days for {}", result.len(), account.platform_username);
-
-        Ok(result)
+        Ok(contributions)
     }
 
     /// Fetch profile data from git platform
@@ -348,6 +360,180 @@ impl PlatformSyncService {
         };
 
         Ok(profile_data)
+    }
+
+    /// Sync activities from contributions (unified approach - no duplicate API calls)
+    async fn sync_activities_from_contributions(
+        &self,
+        account: &git_platform_account::Model,
+        contributions: &[Contribution],
+        from: chrono::DateTime<Utc>,
+        to: chrono::DateTime<Utc>,
+    ) -> Result<()> {
+        let from_date = from.naive_utc().date();
+        let to_date = to.naive_utc().date();
+
+        // Delete existing activities in the date range
+        let deleted = activity::Entity::delete_many()
+            .filter(activity::Column::GitPlatformAccountId.eq(account.id))
+            .filter(activity::Column::ActivityDate.gte(from_date))
+            .filter(activity::Column::ActivityDate.lte(to_date))
+            .exec(&self.db)
+            .await?;
+
+        log::info!("🗑️  Deleted {} existing activities in date range", deleted.rows_affected);
+
+        // Aggregate commits by month from contribution data (no additional API calls!)
+        let mut commits_by_month: HashMap<(i32, u32), (Vec<serde_json::Value>, i32, bool, chrono::NaiveDate)> = HashMap::new();
+
+        for contribution in contributions {
+            if contribution.count > 0 {
+                // Skip contributions without repository names
+                let Some(ref repo_name) = contribution.repository_name else {
+                    log::debug!("Skipping contribution on {} - no repository name available", contribution.date);
+                    continue;
+                };
+
+                let year = contribution.date.year();
+                let month = contribution.date.month();
+                let month_key = (year, month);
+
+                let entry = commits_by_month.entry(month_key).or_insert((Vec::new(), 0, false, contribution.date));
+
+                // Use the latest date in the month for sorting
+                if contribution.date > entry.3 {
+                    entry.3 = contribution.date;
+                }
+
+                // Check if this repo already exists in this month's aggregation
+                let repo_exists = entry.0.iter_mut().find(|r| {
+                    r.get("name").and_then(|v| v.as_str()) == Some(repo_name)
+                });
+
+                if let Some(existing_repo) = repo_exists {
+                    // Add to existing repository's commit count
+                    if let Some(count) = existing_repo.get_mut("commit_count") {
+                        if let Some(current_count) = count.as_i64() {
+                            *count = json!(current_count + contribution.count as i64);
+                        }
+                    }
+                } else {
+                    // Add new repository to the list
+                    entry.0.push(json!({
+                        "name": repo_name,
+                        "commit_count": contribution.count,
+                    }));
+                }
+
+                entry.1 += contribution.count;
+
+                if contribution.is_private {
+                    entry.2 = true;
+                }
+            }
+        }
+
+        log::info!("📊 Aggregated contributions into {} month activities", commits_by_month.len());
+
+        // Store commit activities
+        for ((year, month), (repos, total_count, has_private, latest_date)) in commits_by_month {
+            let activity_model = activity::ActiveModel {
+                id: Set(Uuid::new_v4()),
+                git_platform_account_id: Set(account.id),
+                activity_type: Set(activity::ActivityType::Commit),
+                activity_date: Set(latest_date),
+                metadata: Set(json!({
+                    "repositories": repos,
+                    "total_count": total_count,
+                    "year": year,
+                    "month": month,
+                })),
+                repository_name: Set(None),
+                repository_url: Set(None),
+                is_private_repo: Set(has_private),
+                count: Set(total_count),
+                primary_language: Set(None),
+                organization_name: Set(None),
+                organization_avatar_url: Set(None),
+                created_at: Set(Utc::now()),
+                updated_at: Set(Utc::now()),
+            };
+
+            activity::Entity::insert(activity_model).exec(&self.db).await?;
+        }
+
+        // Fetch additional activity types (repos created, PRs, issues, orgs) - only for GitHub for now
+        if matches!(account.platform_type, git_platform_account::GitPlatform::GitHub) {
+            let client = GitHubClient::new();
+            let config = PlatformConfig::github();
+
+            let access_token = account.access_token.as_ref()
+                .context("No access token found")?;
+            let token = encryption::decrypt(access_token, &self.config.encryption_key)
+                .context("Failed to decrypt access token")?;
+
+            // Fetch repository creation activities
+            log::info!("📦 Fetching repository creation activities...");
+            if let Ok(repo_activities) = client.fetch_repository_creation_activities(
+                &config, &account.platform_username, &token, from, to
+            ).await {
+                log::info!("Found {} repository creation activities", repo_activities.len());
+                for activity in repo_activities {
+                    self.store_activity(account.id, activity).await?;
+                }
+            }
+
+            // Fetch PR and issue activities
+            log::info!("🔀 Fetching PR and issue activities...");
+            if let Ok(pr_issue_activities) = client.fetch_pr_and_issue_activities(
+                &config, &account.platform_username, &token, from, to
+            ).await {
+                log::info!("Found {} PR/issue activities", pr_issue_activities.len());
+                for activity in pr_issue_activities {
+                    self.store_activity(account.id, activity).await?;
+                }
+            }
+        }
+
+        log::info!("✅ Activities sync completed");
+
+        Ok(())
+    }
+
+    /// Store a single activity
+    async fn store_activity(&self, account_id: Uuid, activity: Activity) -> Result<()> {
+        let db_activity_type = match activity.activity_type {
+            ActivityType::Commit => activity::ActivityType::Commit,
+            ActivityType::RepositoryCreated => activity::ActivityType::RepositoryCreated,
+            ActivityType::PullRequest => activity::ActivityType::PullRequest,
+            ActivityType::Issue => activity::ActivityType::Issue,
+            ActivityType::Review => activity::ActivityType::Review,
+            ActivityType::OrganizationJoined => activity::ActivityType::OrganizationJoined,
+            ActivityType::Fork => activity::ActivityType::Fork,
+            ActivityType::Release => activity::ActivityType::Release,
+            ActivityType::Star => activity::ActivityType::Star,
+        };
+
+        let activity_model = activity::ActiveModel {
+            id: Set(Uuid::new_v4()),
+            git_platform_account_id: Set(account_id),
+            activity_type: Set(db_activity_type),
+            activity_date: Set(activity.date),
+            metadata: Set(activity.metadata),
+            repository_name: Set(activity.repository_name),
+            repository_url: Set(activity.repository_url),
+            is_private_repo: Set(activity.is_private),
+            count: Set(activity.count),
+            primary_language: Set(activity.primary_language),
+            organization_name: Set(activity.organization_name),
+            organization_avatar_url: Set(activity.organization_avatar_url),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+        };
+
+        activity::Entity::insert(activity_model).exec(&self.db).await?;
+
+        Ok(())
     }
 
     /// Regenerate all heatmaps for a user's themes

@@ -103,6 +103,7 @@ impl GitPlatform for GiteaClient {
         // Use HashMap to aggregate contributions by date (sum up multiple entries per day)
         let mut contributions_by_date: HashMap<chrono::NaiveDate, i64> = HashMap::new();
         let mut filtered_out = 0;
+        let mut filtered_out_contributions = 0i64;
 
         for entry in heatmap_entries {
             // Convert Unix timestamp to DateTime
@@ -115,7 +116,9 @@ impl GitPlatform for GiteaClient {
             // Filter by date range
             if datetime < from || datetime > to {
                 filtered_out += 1;
-                log::debug!("Filtered out: timestamp={}, date={} (outside range)", entry.timestamp, date);
+                filtered_out_contributions += entry.contributions;
+                log::debug!("Filtered out: timestamp={}, date={}, contributions={} (outside range)",
+                    entry.timestamp, date, entry.contributions);
                 continue;
             }
 
@@ -126,8 +129,8 @@ impl GitPlatform for GiteaClient {
             *contributions_by_date.entry(date).or_insert(0) += entry.contributions;
         }
 
-        log::info!("📊 Filtered out {} entries, aggregated into {} unique dates",
-            filtered_out, contributions_by_date.len());
+        log::info!("📊 Filtered out {} entries ({} contributions), aggregated into {} unique dates",
+            filtered_out, filtered_out_contributions, contributions_by_date.len());
 
         // Now fetch activities to get repository names
         log::info!("📦 Fetching activities to get repository names for contributions...");
@@ -203,40 +206,32 @@ impl GitPlatform for GiteaClient {
             total_activities_fetched, repo_by_date.len());
 
         // Convert to contributions - now with proper repository tracking
-        // For dates with repo information from activities, create separate entries per repo
-        // For dates without repo info, create a single aggregate entry
+        // Create separate contribution records for each repository per date
         let mut contributions: Vec<Contribution> = Vec::new();
-
-        // First, create a map to track contributions by (date, repo)
-        let mut contrib_by_date_repo: HashMap<(chrono::NaiveDate, Option<String>), (i64, bool)> = HashMap::new();
 
         // For each date with contributions
         for (date, total_count) in &contributions_by_date {
             // Check if we have repo information for this date
             if let Some((repo_name, is_private)) = repo_by_date.get(date) {
-                // We have ONE repo for this date - use it
-                contrib_by_date_repo.insert(
-                    (*date, Some(repo_name.clone())),
-                    (*total_count, *is_private)
-                );
+                // We have ONE repo for this date - create one contribution with that repo
+                contributions.push(Contribution {
+                    date: *date,
+                    count: *total_count as i32,
+                    repository_name: Some(repo_name.clone()),
+                    is_private: *is_private,
+                    contribution_type: ContributionType::Commit,
+                });
             } else {
-                // No repo information - create aggregate entry
-                contrib_by_date_repo.insert(
-                    (*date, None),
-                    (*total_count, false)
-                );
+                // No repo information - create contribution with NULL repo
+                // Note: This is acceptable for Gitea since it doesn't have comprehensive repo data
+                contributions.push(Contribution {
+                    date: *date,
+                    count: *total_count as i32,
+                    repository_name: None,
+                    is_private: false,
+                    contribution_type: ContributionType::Commit,
+                });
             }
-        }
-
-        // Convert to Vec<Contribution>
-        for ((date, repo_name), (count, is_private)) in contrib_by_date_repo {
-            contributions.push(Contribution {
-                date,
-                count: count as i32,
-                repository_name: repo_name,
-                is_private,
-                contribution_type: ContributionType::Commit,
-            });
         }
 
         // Sort by date

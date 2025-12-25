@@ -14,8 +14,6 @@ function PlatformConnector() {
   const [patLoading, setPatLoading] = useState(false);
   const [syncingPlatformId, setSyncingPlatformId] = useState(null);
   const [selectedSyncYear, setSelectedSyncYear] = useState({});
-  const [syncingActivitiesPlatformId, setSyncingActivitiesPlatformId] = useState(null);
-  const [selectedActivityYear, setSelectedActivityYear] = useState({});
   const [syncingProfileId, setSyncingProfileId] = useState(null);
 
   useEffect(() => {
@@ -108,7 +106,7 @@ function PlatformConnector() {
       await apiClient.syncPlatform(platformId, allYears, year);
 
       const yearText = allYears ? 'all years' : year ? `year ${year}` : 'current year';
-      alert(`Sync (${yearText}) completed successfully! Profile data and contributions have been updated.`);
+      alert(`Sync (${yearText}) completed successfully! Heatmap and activities have been updated.`);
       await loadPlatforms();
 
       // Trigger a custom event to refresh profile display
@@ -136,31 +134,6 @@ function PlatformConnector() {
       alert(`Profile sync failed: ${err.message}`);
     } finally {
       setSyncingProfileId(null);
-    }
-  };
-
-  const handleSyncActivities = async (platformId) => {
-    try {
-      setSyncingActivitiesPlatformId(platformId);
-      const syncOption = selectedActivityYear[platformId] || 'current';
-
-      let allYears = false;
-      let year = null;
-
-      if (syncOption === 'all') {
-        allYears = true;
-      } else if (syncOption !== 'current') {
-        year = parseInt(syncOption);
-      }
-
-      await apiClient.syncActivities(allYears, year);
-
-      const yearText = allYears ? 'all years' : year ? `year ${year}` : 'current year';
-      alert(`Activity sync (${yearText}) completed successfully! Go to Overview tab to see the results.`);
-    } catch (err) {
-      alert(`Activity sync failed: ${err.message}`);
-    } finally {
-      setSyncingActivitiesPlatformId(null);
     }
   };
 
@@ -214,8 +187,8 @@ function PlatformConnector() {
                 </div>
 
                 <div className="sync-row">
-                  <label className="sync-label" title="Syncs contributions">
-                    Heatmap:
+                  <label className="sync-label" title="Syncs heatmap contributions and activity timeline together">
+                    Heatmap & Activities:
                   </label>
                   <select
                     className="sync-year-selector"
@@ -234,33 +207,9 @@ function PlatformConnector() {
                     className="btn btn-primary btn-sm"
                     onClick={() => handleSync(platform.id)}
                     disabled={syncingPlatformId === platform.id}
-                    title="Sync contribution data"
+                    title="Sync both heatmap contributions and activity timeline"
                   >
                     {syncingPlatformId === platform.id ? 'Syncing...' : 'Sync'}
-                  </button>
-                </div>
-
-                <div className="sync-row">
-                  <label className="sync-label">Activities:</label>
-                  <select
-                    className="sync-year-selector"
-                    value={selectedActivityYear[platform.id] || 'current'}
-                    onChange={(e) => setSelectedActivityYear({ ...selectedActivityYear, [platform.id]: e.target.value })}
-                    disabled={syncingActivitiesPlatformId === platform.id}
-                  >
-                    <option value="current">Current year ({new Date().getFullYear()})</option>
-                    {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => {
-                      const year = new Date().getFullYear() - 1 - i;
-                      return <option key={year} value={year}>{year}</option>;
-                    })}
-                    <option value="all">All years (2020-{new Date().getFullYear()})</option>
-                  </select>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleSyncActivities(platform.id)}
-                    disabled={syncingActivitiesPlatformId === platform.id}
-                  >
-                    {syncingActivitiesPlatformId === platform.id ? 'Syncing...' : 'Sync'}
                   </button>
                 </div>
 

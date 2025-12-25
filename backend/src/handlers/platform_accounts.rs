@@ -482,7 +482,6 @@ pub async fn sync_platform(
 
             let mut all_contributions = Vec::new();
             let mut total_inserted = 0;
-            let mut total_updated = 0;
 
             for year in start_year..=end_year {
                 let from_date = chrono::NaiveDate::from_ymd_opt(year, 1, 1).unwrap();
@@ -513,66 +512,67 @@ pub async fn sync_platform(
 
             log::info!("✅ [Sync] Total fetched: {} contribution days across all years", all_contributions.len());
 
-            // Store contributions in database
+            // Delete existing contributions in the synced date range
+            let delete_from = chrono::NaiveDate::from_ymd_opt(start_year, 1, 1).unwrap();
+            let delete_to = if end_year == current_year {
+                Utc::now().date_naive()
+            } else {
+                chrono::NaiveDate::from_ymd_opt(end_year, 12, 31).unwrap()
+            };
+
+            log::info!("🗑️  [Sync] Deleting existing contributions from {} to {}", delete_from, delete_to);
+
+            let deleted = contribution::Entity::delete_many()
+                .filter(contribution::Column::GitPlatformAccountId.eq(account_id))
+                .filter(contribution::Column::ContributionDate.gte(delete_from))
+                .filter(contribution::Column::ContributionDate.lte(delete_to))
+                .exec(db.as_ref())
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to delete existing contributions: {}", e);
+                    actix_web::error::ErrorInternalServerError("Failed to delete existing contributions")
+                })?;
+
+            log::info!("🗑️  [Sync] Deleted {} existing contributions in date range", deleted.rows_affected);
+
+            // Insert all fresh contributions
             for contrib in all_contributions {
-                // Check if contribution already exists for this date AND repository
-                let existing = contribution::Entity::find()
-                    .filter(contribution::Column::GitPlatformAccountId.eq(account_id))
-                    .filter(contribution::Column::ContributionDate.eq(contrib.date))
-                    .filter(
-                        if let Some(ref repo) = contrib.repository_name {
-                            contribution::Column::RepositoryName.eq(repo.as_str())
-                        } else {
-                            contribution::Column::RepositoryName.is_null()
-                        }
-                    )
-                    .one(db.as_ref())
+                let new_contrib = contribution::ActiveModel {
+                    id: Set(Uuid::new_v4()),
+                    git_platform_account_id: Set(account_id),
+                    contribution_date: Set(contrib.date),
+                    count: Set(contrib.count),
+                    repository_name: Set(contrib.repository_name),
+                    is_private_repo: Set(contrib.is_private),
+                    created_at: Set(Utc::now()),
+                    updated_at: Set(Utc::now()),
+                };
+
+                contribution::Entity::insert(new_contrib)
+                    .exec(db.as_ref())
                     .await
                     .map_err(|e| {
-                        log::error!("Database error: {}", e);
-                        actix_web::error::ErrorInternalServerError("Database error")
+                        log::error!("Failed to insert contribution: {}", e);
+                        actix_web::error::ErrorInternalServerError("Failed to insert contribution")
                     })?;
-
-                if let Some(existing_contrib) = existing {
-                    // Update existing contribution
-                    let mut active_model: contribution::ActiveModel = existing_contrib.into();
-                    active_model.count = Set(contrib.count);
-                    active_model.updated_at = Set(Utc::now());
-
-                    active_model.update(db.as_ref()).await.map_err(|e| {
-                        log::error!("Failed to update contribution: {}", e);
-                        actix_web::error::ErrorInternalServerError("Failed to update contribution")
-                    })?;
-                    total_updated += 1;
-                } else {
-                    // Insert new contribution
-                    let new_contrib = contribution::ActiveModel {
-                        id: Set(Uuid::new_v4()),
-                        git_platform_account_id: Set(account_id),
-                        contribution_date: Set(contrib.date),
-                        count: Set(contrib.count),
-                        repository_name: Set(contrib.repository_name),
-                        is_private_repo: Set(contrib.is_private),
-                        created_at: Set(Utc::now()),
-                        updated_at: Set(Utc::now()),
-                    };
-
-                    contribution::Entity::insert(new_contrib)
-                        .exec(db.as_ref())
-                        .await
-                        .map_err(|e| {
-                            log::error!("Failed to insert contribution: {}", e);
-                            actix_web::error::ErrorInternalServerError("Failed to insert contribution")
-                        })?;
-                    total_inserted += 1;
-                }
+                total_inserted += 1;
             }
 
-            log::info!("💾 [Sync] Stored contributions: {} inserted, {} updated", total_inserted, total_updated);
+            log::info!("💾 [Sync] Stored contributions: {} inserted", total_inserted);
 
-            // Fetch and update profile data
-            log::info!("👤 [Sync] Fetching profile data for {}", account.platform_username);
-            match github_client.fetch_user_profile(&platform_config, &account.platform_username, &access_token).await {
+            // Sync profile data if enabled (synced only once, regardless of date range)
+            let account_for_profile = git_platform_account::Entity::find_by_id(account_id)
+                .one(db.as_ref())
+                .await
+                .map_err(|e| {
+                    log::error!("Database error: {}", e);
+                    actix_web::error::ErrorInternalServerError("Database error")
+                })?
+                .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+            if account_for_profile.sync_profile {
+                log::info!("👤 [Sync] Syncing profile data for {} (one-time, independent of date range)", account.platform_username);
+                match github_client.fetch_user_profile(&platform_config, &account.platform_username, &access_token).await {
                 Ok(profile_data) => {
                     log::info!("✅ [Sync] Fetched profile data successfully");
 
@@ -642,6 +642,9 @@ pub async fn sync_platform(
                     // Don't fail the entire sync if profile fetch fails
                 }
             }
+            } else {
+                log::debug!("[Sync] Profile sync disabled for this account");
+            }
         }
         git_platform_account::GitPlatform::Gitea => {
             let gitea_client = GiteaClient::new();
@@ -662,22 +665,8 @@ pub async fn sync_platform(
                 (current_year, current_year)
             };
 
-            // Delete ALL existing Gitea contributions for this account to avoid conflicts
-            // This ensures clean data when switching between different sync methods
-            let deleted = contribution::Entity::delete_many()
-                .filter(contribution::Column::GitPlatformAccountId.eq(account_id))
-                .exec(db.as_ref())
-                .await
-                .map_err(|e| {
-                    log::error!("Failed to delete existing contributions: {}", e);
-                    actix_web::error::ErrorInternalServerError("Failed to delete existing contributions")
-                })?;
-
-            log::info!("🗑️  Deleted {} existing Gitea contributions (fresh sync)", deleted.rows_affected);
-
             let mut all_contributions = Vec::new();
             let mut total_inserted = 0;
-            let mut total_updated = 0;
 
             for year in start_year..=end_year {
                 let from_date = chrono::NaiveDate::from_ymd_opt(year, 1, 1).unwrap();
@@ -706,77 +695,67 @@ pub async fn sync_platform(
 
             log::info!("✅ [Sync] Total fetched: {} contribution days across all years", all_contributions.len());
 
-            // Store contributions in database
-            log::info!("💾 [Sync] Starting database storage loop...");
-            for (index, contrib) in all_contributions.iter().enumerate() {
-                log::debug!("Processing contribution {}/{}: date={}, count={}, repo={:?}",
-                    index + 1, all_contributions.len(), contrib.date, contrib.count, contrib.repository_name);
+            // Delete existing contributions in the synced date range (same as GitHub)
+            let delete_from = chrono::NaiveDate::from_ymd_opt(start_year, 1, 1).unwrap();
+            let delete_to = if end_year == current_year {
+                Utc::now().date_naive()
+            } else {
+                chrono::NaiveDate::from_ymd_opt(end_year, 12, 31).unwrap()
+            };
 
-                // Check if contribution already exists for this date AND repository
-                let existing = contribution::Entity::find()
-                    .filter(contribution::Column::GitPlatformAccountId.eq(account_id))
-                    .filter(contribution::Column::ContributionDate.eq(contrib.date))
-                    .filter(
-                        if let Some(ref repo) = contrib.repository_name {
-                            contribution::Column::RepositoryName.eq(repo.as_str())
-                        } else {
-                            contribution::Column::RepositoryName.is_null()
-                        }
-                    )
-                    .one(db.as_ref())
+            log::info!("🗑️  [Sync] Deleting existing contributions from {} to {}", delete_from, delete_to);
+
+            let deleted = contribution::Entity::delete_many()
+                .filter(contribution::Column::GitPlatformAccountId.eq(account_id))
+                .filter(contribution::Column::ContributionDate.gte(delete_from))
+                .filter(contribution::Column::ContributionDate.lte(delete_to))
+                .exec(db.as_ref())
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to delete existing contributions: {}", e);
+                    actix_web::error::ErrorInternalServerError("Failed to delete existing contributions")
+                })?;
+
+            log::info!("🗑️  [Sync] Deleted {} existing contributions in date range", deleted.rows_affected);
+
+            // Insert all fresh contributions
+            for contrib in all_contributions {
+                let new_contrib = contribution::ActiveModel {
+                    id: Set(Uuid::new_v4()),
+                    git_platform_account_id: Set(account_id),
+                    contribution_date: Set(contrib.date),
+                    count: Set(contrib.count),
+                    repository_name: Set(contrib.repository_name),
+                    is_private_repo: Set(contrib.is_private),
+                    created_at: Set(Utc::now()),
+                    updated_at: Set(Utc::now()),
+                };
+
+                contribution::Entity::insert(new_contrib)
+                    .exec(db.as_ref())
                     .await
                     .map_err(|e| {
-                        log::error!("Database error while checking existing contribution: {}", e);
-                        actix_web::error::ErrorInternalServerError("Database error")
+                        log::error!("Failed to insert contribution: {}", e);
+                        actix_web::error::ErrorInternalServerError("Failed to insert contribution")
                     })?;
-
-                if let Some(existing_contrib) = existing {
-                    log::info!("🔄 [UPDATE] Found existing contribution for date {} repo {:?}: updating count {} -> {}",
-                        contrib.date, contrib.repository_name, existing_contrib.count, contrib.count);
-
-                    let mut active_model: contribution::ActiveModel = existing_contrib.into();
-                    active_model.count = Set(contrib.count);
-                    active_model.updated_at = Set(Utc::now());
-
-                    active_model.update(db.as_ref()).await.map_err(|e| {
-                        log::error!("❌ Failed to update contribution for date {}: {}", contrib.date, e);
-                        actix_web::error::ErrorInternalServerError("Failed to update contribution")
-                    })?;
-                    total_updated += 1;
-                    log::debug!("✅ Successfully updated contribution for date {}", contrib.date);
-                } else {
-                    log::info!("➕ [INSERT] New contribution for date {} repo {:?} with count {}",
-                        contrib.date, contrib.repository_name, contrib.count);
-
-                    let new_contrib = contribution::ActiveModel {
-                        id: Set(Uuid::new_v4()),
-                        git_platform_account_id: Set(account_id),
-                        contribution_date: Set(contrib.date),
-                        count: Set(contrib.count),
-                        repository_name: Set(contrib.repository_name.clone()),
-                        is_private_repo: Set(contrib.is_private),
-                        created_at: Set(Utc::now()),
-                        updated_at: Set(Utc::now()),
-                    };
-
-                    contribution::Entity::insert(new_contrib)
-                        .exec(db.as_ref())
-                        .await
-                        .map_err(|e| {
-                            log::error!("❌ Failed to insert contribution for date {}: {}", contrib.date, e);
-                            actix_web::error::ErrorInternalServerError("Failed to insert contribution")
-                        })?;
-                    total_inserted += 1;
-                    log::debug!("✅ Successfully inserted contribution for date {}", contrib.date);
-                }
+                total_inserted += 1;
             }
 
-            log::info!("💾 [Sync] Stored contributions: {} inserted, {} updated (total: {})",
-                total_inserted, total_updated, total_inserted + total_updated);
+            log::info!("💾 [Sync] Stored contributions: {} inserted", total_inserted);
 
-            // Fetch and update profile data
-            log::info!("👤 [Sync] Fetching Gitea profile data for {}", account.platform_username);
-            match gitea_client.fetch_user_profile(&platform_config, &access_token).await {
+            // Sync profile data if enabled (synced only once, regardless of date range)
+            let account_for_profile = git_platform_account::Entity::find_by_id(account_id)
+                .one(db.as_ref())
+                .await
+                .map_err(|e| {
+                    log::error!("Database error: {}", e);
+                    actix_web::error::ErrorInternalServerError("Database error")
+                })?
+                .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+            if account_for_profile.sync_profile {
+                log::info!("👤 [Sync] Syncing Gitea profile data for {} (one-time, independent of date range)", account.platform_username);
+                match gitea_client.fetch_user_profile(&platform_config, &access_token).await {
                 Ok(profile_data) => {
                     log::info!("✅ [Sync] Fetched Gitea profile data successfully");
 
@@ -852,12 +831,65 @@ pub async fn sync_platform(
                     log::warn!("⚠️  [Sync] Failed to fetch Gitea profile data (continuing sync): {}", e);
                 }
             }
+            } else {
+                log::debug!("[Sync] Profile sync disabled for this account");
+            }
         }
         _ => {
             return Err(actix_web::error::ErrorNotImplemented(
                 "Syncing is only implemented for GitHub and Gitea currently"
             ));
         }
+    }
+
+    // Sync activities if enabled
+    let account_for_activities = git_platform_account::Entity::find_by_id(account_id)
+        .one(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+    if account_for_activities.sync_activities {
+        log::info!("📅 [Sync] Syncing activities for timeline...");
+
+        // Use the activity aggregation service
+        use crate::services::activity_aggregation::ActivityAggregationService;
+        let activity_service = ActivityAggregationService::new(db.as_ref().clone(), config.encryption_key.clone());
+
+        // Determine date range from query parameters
+        let current_year = Utc::now().year();
+        let (start_year, end_year) = if sync_all_years {
+            (2020, current_year)
+        } else if let Some(year) = specific_year {
+            (year, year)
+        } else {
+            (current_year, current_year)
+        };
+
+        // Calculate date range for activity sync
+        let from_date = chrono::NaiveDate::from_ymd_opt(start_year, 1, 1).unwrap();
+        let to_date = if end_year == current_year {
+            Utc::now().date_naive()
+        } else {
+            chrono::NaiveDate::from_ymd_opt(end_year, 12, 31).unwrap()
+        };
+        let from = from_date.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let to = to_date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+
+        match activity_service.sync_single_platform_activity(account_id, from, to).await {
+            Ok(_) => {
+                log::info!("✅ [Sync] Activities synced successfully");
+            }
+            Err(e) => {
+                log::warn!("⚠️  [Sync] Failed to sync activities (continuing): {}", e);
+                // Don't fail the entire sync if activity sync fails
+            }
+        }
+    } else {
+        log::debug!("[Sync] Activity sync disabled for this account");
     }
 
     // Update last_synced_at timestamp

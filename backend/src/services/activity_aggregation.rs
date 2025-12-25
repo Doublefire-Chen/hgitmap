@@ -166,7 +166,11 @@ impl ActivityAggregationService {
 
         for contribution in contributions {
             if contribution.count > 0 {
-                let repo_name = contribution.repository_name.clone().unwrap_or_else(|| "Unknown".to_string());
+                // Skip contributions without repository names - they can't be properly attributed
+                let Some(repo_name) = contribution.repository_name.clone() else {
+                    log::debug!("Skipping contribution on {} - no repository name available", contribution.date);
+                    continue;
+                };
 
                 // Group by year and month
                 let year = contribution.date.year();

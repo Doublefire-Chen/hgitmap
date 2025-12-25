@@ -56,7 +56,11 @@ CREATE TABLE contributions (
     repository_name VARCHAR(512),
     is_private_repo BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    -- Unique constraint: one contribution per account, date, and repository
+    -- NULLS NOT DISTINCT ensures only one NULL repository_name per date
+    CONSTRAINT unique_contribution_per_account_date_repo
+        UNIQUE NULLS NOT DISTINCT (git_platform_account_id, contribution_date, repository_name)
 );
 
 -- Index for fast date-range queries
