@@ -62,6 +62,8 @@ async fn main() -> std::io::Result<()> {
     println!("   - GET  http://{}:{}/oauth/github/callback", host, port);
     println!("   - GET  http://{}:{}/oauth/gitea/authorize", host, port);
     println!("   - GET  http://{}:{}/oauth/gitea/callback", host, port);
+    println!("   - GET  http://{}:{}/oauth/gitlab/authorize", host, port);
+    println!("   - GET  http://{}:{}/oauth/gitlab/callback", host, port);
     println!("   - POST http://{}:{}/platforms/connect (JWT required)", host, port);
     println!("   - GET  http://{}:{}/platforms (JWT required)", host, port);
     println!("   - GET  http://{}:{}/contributions (JWT required)", host, port);
@@ -110,6 +112,13 @@ async fn main() -> std::io::Result<()> {
                             .wrap(crate::middleware::auth::JwtMiddleware)
                     )
                     .route("/gitea/callback", web::get().to(handlers::oauth::gitea_callback))
+                    .route(
+                        "/gitlab/authorize",
+                        web::get()
+                            .to(handlers::oauth::gitlab_authorize)
+                            .wrap(crate::middleware::auth::JwtMiddleware)
+                    )
+                    .route("/gitlab/callback", web::get().to(handlers::oauth::gitlab_callback))
                     // Public endpoint to list available OAuth instances
                     .route("/instances/{platform}", web::get().to(handlers::oauth::list_oauth_instances))
             )

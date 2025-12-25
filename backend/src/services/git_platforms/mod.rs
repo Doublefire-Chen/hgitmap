@@ -1,8 +1,10 @@
 pub mod github;
 pub mod gitea;
+pub mod gitlab;
 
 pub use github::GitHubClient;
 pub use gitea::GiteaClient;
+pub use gitlab::GitLabClient;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};

@@ -192,6 +192,14 @@ class ApiClient {
     return response.authorization_url;
   }
 
+  async startGitlabOAuth(instanceUrl = null) {
+    const url = instanceUrl
+      ? `/oauth/gitlab/authorize?instance_url=${encodeURIComponent(instanceUrl)}`
+      : '/oauth/gitlab/authorize';
+    const response = await this.fetchWithAuth(url);
+    return response.authorization_url;
+  }
+
   async listOAuthInstances(platform) {
     // This is a public endpoint, but we still use fetchWithAuth for consistency
     const response = await this.fetchWithAuth(`/oauth/instances/${platform}`);

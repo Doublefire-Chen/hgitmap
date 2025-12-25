@@ -20,6 +20,11 @@ function PlatformConnector() {
   const [giteaOAuthError, setGiteaOAuthError] = useState(null);
   const [giteaInstances, setGiteaInstances] = useState([]);
   const [loadingGiteaInstances, setLoadingGiteaInstances] = useState(false);
+  const [showGitlabOAuthForm, setShowGitlabOAuthForm] = useState(false);
+  const [gitlabOAuthInstanceUrl, setGitlabOAuthInstanceUrl] = useState('');
+  const [gitlabOAuthError, setGitlabOAuthError] = useState(null);
+  const [gitlabInstances, setGitlabInstances] = useState([]);
+  const [loadingGitlabInstances, setLoadingGitlabInstances] = useState(false);
 
   useEffect(() => {
     loadPlatforms();
@@ -105,6 +110,58 @@ function PlatformConnector() {
     }
   };
 
+  const handleShowGitlabOAuth = async () => {
+    setLoadingGitlabInstances(true);
+    setGitlabOAuthError(null);
+    setShowGitlabOAuthForm(true);
+
+    try {
+      // Fetch available GitLab OAuth instances
+      const instances = await apiClient.listOAuthInstances('gitlab');
+      console.log('📋 Available GitLab instances:', instances);
+
+      if (instances.length === 0) {
+        setGitlabOAuthError('No GitLab OAuth apps configured. Please ask your administrator to configure a GitLab OAuth app in the admin panel.');
+        setGitlabInstances([]);
+      } else {
+        setGitlabInstances(instances);
+        // Auto-select the default instance or first instance
+        const defaultInstance = instances.find(i => i.is_default) || instances[0];
+        setGitlabOAuthInstanceUrl(defaultInstance.instance_url);
+
+        // If only one instance, we can show a simpler UI
+        if (instances.length === 1) {
+          console.log(`✅ Auto-selected single GitLab instance: ${defaultInstance.instance_name}`);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Failed to fetch GitLab instances:', err);
+      setGitlabOAuthError(`Failed to load GitLab instances: ${err.message}`);
+      setGitlabInstances([]);
+    } finally {
+      setLoadingGitlabInstances(false);
+    }
+  };
+
+  const handleConnectGitlabOAuth = async () => {
+    console.log('🔐 [GitLab OAuth] Starting OAuth flow');
+
+    if (!gitlabOAuthInstanceUrl) {
+      setGitlabOAuthError('Please select a GitLab instance');
+      return;
+    }
+
+    try {
+      setGitlabOAuthError(null);
+      const authUrl = await apiClient.startGitlabOAuth(gitlabOAuthInstanceUrl);
+      console.log(`🚀 [GitLab OAuth] Redirecting to: ${authUrl}`);
+      window.location.href = authUrl;
+    } catch (err) {
+      console.error('❌ [GitLab OAuth] Failed to start OAuth flow:', err);
+      setGitlabOAuthError(`Failed to start OAuth flow: ${err.message}`);
+    }
+  };
+
   const handleConnectPAT = async (e) => {
     e.preventDefault();
 
@@ -113,16 +170,20 @@ function PlatformConnector() {
       return;
     }
 
-    // Validate instance URL for Gitea
-    if (selectedPlatform === 'gitea' && !instanceUrl.trim()) {
-      setPatError('Please enter your Gitea instance URL');
+    // Validate instance URL for Gitea and GitLab
+    if ((selectedPlatform === 'gitea' || selectedPlatform === 'gitlab') && !instanceUrl.trim()) {
+      setPatError(`Please enter your ${selectedPlatform === 'gitea' ? 'Gitea' : 'GitLab'} instance URL`);
       return;
     }
 
     try {
       setPatLoading(true);
       setPatError(null);
-      await apiClient.connectPlatform(selectedPlatform, patToken, selectedPlatform === 'gitea' ? instanceUrl : null);
+      await apiClient.connectPlatform(
+        selectedPlatform,
+        patToken,
+        (selectedPlatform === 'gitea' || selectedPlatform === 'gitlab') ? instanceUrl : null
+      );
       setPatToken('');
       setInstanceUrl('');
       setShowPATForm(false);
@@ -287,7 +348,7 @@ function PlatformConnector() {
       <div className="connect-platform-section">
         <h3>Connect Platform</h3>
 
-        {!showPATForm && !showGiteaOAuthForm ? (
+        {!showPATForm && !showGiteaOAuthForm && !showGitlabOAuthForm ? (
           <div className="connect-buttons">
             <button className="btn btn-primary" onClick={handleConnectOAuth}>
               Connect GitHub with OAuth
@@ -295,12 +356,85 @@ function PlatformConnector() {
             <button className="btn btn-primary" onClick={handleShowGiteaOAuth}>
               Connect Gitea with OAuth
             </button>
+            <button className="btn btn-primary" onClick={handleShowGitlabOAuth}>
+              Connect GitLab with OAuth
+            </button>
             <button className="btn btn-secondary" onClick={() => {
               setSelectedPlatform('github');
               setShowPATForm(true);
             }}>
               Connect with Personal Access Token
             </button>
+          </div>
+        ) : showGitlabOAuthForm ? (
+          <div className="gitlab-oauth-form">
+            <h4>Connect GitLab with OAuth</h4>
+
+            {loadingGitlabInstances ? (
+              <p className="form-hint">Loading available GitLab instances...</p>
+            ) : gitlabInstances.length === 0 ? (
+              <>
+                {gitlabOAuthError && <div className="error-message">{gitlabOAuthError}</div>}
+                <p className="form-hint">
+                  No GitLab OAuth applications are configured. Please ask your administrator to add a GitLab OAuth app in the admin panel at <code>/admin/oauth-apps</code>.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="form-hint">
+                  {gitlabInstances.length === 1
+                    ? `Connecting to: ${gitlabInstances[0].instance_name}`
+                    : 'Select which GitLab instance you want to connect to:'}
+                </p>
+
+                {gitlabOAuthError && <div className="error-message">{gitlabOAuthError}</div>}
+
+                {gitlabInstances.length > 1 && (
+                  <div className="instance-selector">
+                    <label htmlFor="gitlab-instance-select">GitLab Instance:</label>
+                    <select
+                      id="gitlab-instance-select"
+                      value={gitlabOAuthInstanceUrl}
+                      onChange={(e) => setGitlabOAuthInstanceUrl(e.target.value)}
+                      className="instance-select"
+                    >
+                      {gitlabInstances.map((instance) => (
+                        <option key={instance.instance_url} value={instance.instance_url}>
+                          {instance.instance_name} ({instance.instance_url || 'gitlab.com'})
+                          {instance.is_default ? ' [Default]' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="pat-form-actions">
+              {gitlabInstances.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConnectGitlabOAuth}
+                  disabled={loadingGitlabInstances}
+                >
+                  Connect
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowGitlabOAuthForm(false);
+                  setGitlabOAuthInstanceUrl('');
+                  setGitlabOAuthError(null);
+                  setGitlabInstances([]);
+                }}
+                disabled={loadingGitlabInstances}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         ) : showGiteaOAuthForm ? (
           <div className="gitea-oauth-form">
@@ -385,10 +519,11 @@ function PlatformConnector() {
               >
                 <option value="github">GitHub</option>
                 <option value="gitea">Gitea</option>
+                <option value="gitlab">GitLab</option>
               </select>
             </div>
 
-            {selectedPlatform === 'gitea' && (
+            {(selectedPlatform === 'gitea' || selectedPlatform === 'gitlab') && (
               <div className="instance-url-input">
                 <label htmlFor="instance-url">Instance URL:</label>
                 <input
@@ -396,11 +531,16 @@ function PlatformConnector() {
                   type="url"
                   value={instanceUrl}
                   onChange={(e) => setInstanceUrl(e.target.value)}
-                  placeholder="https://gitea.example.com"
+                  placeholder={selectedPlatform === 'gitea' ? "https://gitea.example.com" : "https://gitlab.com"}
                   className="instance-url"
                   disabled={patLoading}
+                  required
                 />
-                <p className="input-hint">Enter the full URL of your Gitea instance</p>
+                <p className="input-hint">
+                  {selectedPlatform === 'gitea'
+                    ? "Enter the full URL of your Gitea instance"
+                    : "Enter the full URL of your GitLab instance (e.g., https://gitlab.com for GitLab.com)"}
+                </p>
               </div>
             )}
 
@@ -423,6 +563,16 @@ function PlatformConnector() {
                   <br />
                   Go to your Gitea instance → Settings → Applications → Generate New Token
                 </>
+              ) : selectedPlatform === 'gitlab' ? (
+                <>
+                  Create a GitLab Personal Access Token with these scopes:
+                  <br />
+                  <code>read_user</code>, <code>read_api</code>, <code>read_repository</code>
+                  <br />
+                  Go to your GitLab instance → Preferences → Access Tokens → Add new token
+                  <br />
+                  For gitlab.com: <a href="https://gitlab.com/-/user_settings/personal_access_tokens" target="_blank" rel="noopener noreferrer">Create token →</a>
+                </>
               ) : null}
             </p>
 
@@ -432,7 +582,12 @@ function PlatformConnector() {
               type="password"
               value={patToken}
               onChange={(e) => setPatToken(e.target.value)}
-              placeholder={selectedPlatform === 'github' ? 'ghp_xxxxxxxxxxxx' : selectedPlatform === 'gitea' ? 'Your Gitea token' : 'Token'}
+              placeholder={
+                selectedPlatform === 'github' ? 'ghp_xxxxxxxxxxxx' :
+                selectedPlatform === 'gitea' ? 'Your Gitea token' :
+                selectedPlatform === 'gitlab' ? 'glpat-xxxxxxxxxxxx' :
+                'Token'
+              }
               className="pat-input"
               disabled={patLoading}
             />

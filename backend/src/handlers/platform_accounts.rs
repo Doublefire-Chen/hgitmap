@@ -5,7 +5,7 @@ use uuid::Uuid;
 use chrono::{Utc, Datelike};
 
 use crate::models::{git_platform_account, contribution};
-use crate::services::git_platforms::{github::GitHubClient, gitea::GiteaClient, GitPlatform, PlatformConfig};
+use crate::services::git_platforms::{github::GitHubClient, gitea::GiteaClient, gitlab::GitLabClient, GitPlatform, PlatformConfig};
 use crate::utils::{config::Config, encryption, validators};
 
 #[derive(Debug, Deserialize)]
@@ -90,6 +90,20 @@ pub async fn connect_platform(
 
             (git_platform_account::GitPlatform::Gitea, PlatformConfig::gitea_custom(instance_url))
         }
+        "gitlab" => {
+            // GitLab requires explicit instance URL (including gitlab.com)
+            let instance_url = payload.instance_url.as_ref()
+                .ok_or_else(|| {
+                    actix_web::error::ErrorBadRequest("GitLab requires an explicit instance_url parameter (e.g., https://gitlab.com)")
+                })?;
+
+            // Validate instance URL
+            validators::validate_url(instance_url).map_err(|e| {
+                actix_web::error::ErrorBadRequest(format!("Invalid instance URL: {}", e))
+            })?;
+
+            (git_platform_account::GitPlatform::GitLab, PlatformConfig::gitlab_custom(instance_url))
+        }
         _ => {
             return Ok(HttpResponse::BadRequest().json(ErrorResponse {
                 error: format!("Unsupported platform: {}", payload.platform),
@@ -116,6 +130,16 @@ pub async fn connect_platform(
                 .await
                 .map_err(|e| {
                     log::error!("Failed to validate Gitea token: {}", e);
+                    actix_web::error::ErrorUnauthorized(format!("Invalid access token: {}", e))
+                })?
+        }
+        "gitlab" => {
+            let client = GitLabClient::new();
+            client
+                .validate_token(&platform_config, &payload.access_token)
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to validate GitLab token: {}", e);
                     actix_web::error::ErrorUnauthorized(format!("Invalid access token: {}", e))
                 })?
         }
@@ -829,10 +853,192 @@ pub async fn sync_platform(
                 log::debug!("[Sync] Profile sync disabled for this account");
             }
         }
-        _ => {
-            return Err(actix_web::error::ErrorNotImplemented(
-                "Syncing is only implemented for GitHub and Gitea currently"
-            ));
+        git_platform_account::GitPlatform::GitLab => {
+            let gitlab_client = GitLabClient::new();
+            let instance_url = account.platform_url.as_ref()
+                .ok_or_else(|| actix_web::error::ErrorInternalServerError("GitLab instance URL not found"))?;
+            let platform_config = PlatformConfig::gitlab_custom(instance_url);
+
+            let current_year = Utc::now().year();
+
+            let (start_year, end_year) = if sync_all_years {
+                log::info!("🔄 [Sync] Mode: ALL YEARS (2020 to {})", current_year);
+                (2020, current_year)
+            } else if let Some(year) = specific_year {
+                log::info!("🔄 [Sync] Mode: SPECIFIC YEAR ({})", year);
+                (year, year)
+            } else {
+                log::info!("🔄 [Sync] Mode: CURRENT YEAR ({})", current_year);
+                (current_year, current_year)
+            };
+
+            let mut all_contributions = Vec::new();
+            let mut total_inserted = 0;
+
+            for year in start_year..=end_year {
+                let from_date = chrono::NaiveDate::from_ymd_opt(year, 1, 1).unwrap();
+                let from = from_date.and_hms_opt(0, 0, 0).unwrap().and_utc();
+
+                let to_date = if year == current_year {
+                    Utc::now().date_naive()
+                } else {
+                    chrono::NaiveDate::from_ymd_opt(year, 12, 31).unwrap()
+                };
+                let to = to_date.and_hms_opt(23, 59, 59).unwrap().and_utc();
+
+                log::info!("🔄 [Sync] Fetching year {}: {} to {}", year, from.format("%Y-%m-%d"), to.format("%Y-%m-%d"));
+
+                let contributions = gitlab_client
+                    .fetch_contributions(&platform_config, &account.platform_username, &access_token, from, to)
+                    .await
+                    .map_err(|e| {
+                        log::error!("❌ [Sync] Failed to fetch GitLab contributions for year {}: {}", year, e);
+                        actix_web::error::ErrorInternalServerError(format!("Failed to fetch contributions for year {}: {}", year, e))
+                    })?;
+
+                log::info!("✅ [Sync] Fetched {} contribution days for year {}", contributions.len(), year);
+                all_contributions.extend(contributions);
+            }
+
+            log::info!("✅ [Sync] Total fetched: {} contribution days across all years", all_contributions.len());
+
+            // Delete existing contributions in the synced date range
+            let delete_from = chrono::NaiveDate::from_ymd_opt(start_year, 1, 1).unwrap();
+            let delete_to = if end_year == current_year {
+                Utc::now().date_naive()
+            } else {
+                chrono::NaiveDate::from_ymd_opt(end_year, 12, 31).unwrap()
+            };
+
+            log::info!("🗑️  [Sync] Deleting existing contributions from {} to {}", delete_from, delete_to);
+
+            let deleted = contribution::Entity::delete_many()
+                .filter(contribution::Column::GitPlatformAccountId.eq(account_id))
+                .filter(contribution::Column::ContributionDate.gte(delete_from))
+                .filter(contribution::Column::ContributionDate.lte(delete_to))
+                .exec(db.as_ref())
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to delete existing contributions: {}", e);
+                    actix_web::error::ErrorInternalServerError("Failed to delete existing contributions")
+                })?;
+
+            log::info!("🗑️  [Sync] Deleted {} existing contributions in date range", deleted.rows_affected);
+
+            // Insert all fresh contributions
+            for contrib in all_contributions {
+                let new_contrib = contribution::ActiveModel {
+                    id: Set(Uuid::new_v4()),
+                    git_platform_account_id: Set(account_id),
+                    contribution_date: Set(contrib.date),
+                    count: Set(contrib.count),
+                    repository_name: Set(contrib.repository_name),
+                    is_private_repo: Set(contrib.is_private),
+                    created_at: Set(Utc::now()),
+                    updated_at: Set(Utc::now()),
+                };
+
+                contribution::Entity::insert(new_contrib)
+                    .exec(db.as_ref())
+                    .await
+                    .map_err(|e| {
+                        log::error!("Failed to insert contribution: {}", e);
+                        actix_web::error::ErrorInternalServerError("Failed to insert contribution")
+                    })?;
+                total_inserted += 1;
+            }
+
+            log::info!("💾 [Sync] Stored contributions: {} inserted", total_inserted);
+
+            // Sync profile data if enabled (synced only once, regardless of date range)
+            let account_for_profile = git_platform_account::Entity::find_by_id(account_id)
+                .one(db.as_ref())
+                .await
+                .map_err(|e| {
+                    log::error!("Database error: {}", e);
+                    actix_web::error::ErrorInternalServerError("Database error")
+                })?
+                .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+            if account_for_profile.sync_profile {
+                log::info!("👤 [Sync] Syncing GitLab profile data for {} (one-time, independent of date range)", account.platform_username);
+                match gitlab_client.fetch_user_profile(&platform_config, &access_token).await {
+                    Ok(profile_data) => {
+                        log::info!("✅ [Sync] Fetched GitLab profile data successfully");
+
+                        let avatar_url = profile_data.get("avatar_url")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        let display_name = profile_data.get("name")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        let bio = profile_data.get("bio")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        let profile_url = profile_data.get("web_url")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        let location = profile_data.get("location")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        let company = profile_data.get("organization")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+
+                        // Note: GitLab API doesn't provide followers/following in basic user endpoint
+                        // Would need separate API calls to get this data
+
+                        // Update account with profile data
+                        let account_for_update = git_platform_account::Entity::find_by_id(account_id)
+                            .one(db.as_ref())
+                            .await
+                            .map_err(|e| {
+                                log::error!("Database error: {}", e);
+                                actix_web::error::ErrorInternalServerError("Database error")
+                            })?
+                            .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+                        let mut account_update: git_platform_account::ActiveModel = account_for_update.into();
+
+                        if let Some(url) = avatar_url {
+                            account_update.avatar_url = Set(Some(url));
+                        }
+                        if let Some(name) = display_name {
+                            account_update.display_name = Set(Some(name));
+                        }
+                        if let Some(b) = bio {
+                            account_update.bio = Set(Some(b));
+                        }
+                        if let Some(url) = profile_url {
+                            account_update.profile_url = Set(Some(url));
+                        }
+                        if let Some(loc) = location {
+                            account_update.location = Set(Some(loc));
+                        }
+                        if let Some(org) = company {
+                            account_update.company = Set(Some(org));
+                        }
+
+                        account_update.updated_at = Set(Utc::now());
+                        account_update.update(db.as_ref()).await.map_err(|e| {
+                            log::error!("Failed to update account: {}", e);
+                            actix_web::error::ErrorInternalServerError("Failed to update account")
+                        })?;
+
+                        log::info!("💾 [Sync] Stored GitLab profile data successfully");
+                    }
+                    Err(e) => {
+                        log::warn!("⚠️  [Sync] Failed to fetch GitLab profile data (continuing sync): {}", e);
+                    }
+                }
+            } else {
+                log::debug!("[Sync] Profile sync disabled for this account");
+            }
         }
     }
 

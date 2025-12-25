@@ -1,6 +1,6 @@
 use crate::models::activity::{ActiveModel as ActivityActiveModel, ActivityType as DbActivityType};
 use crate::models::git_platform_account;
-use crate::services::git_platforms::{Activity, ActivityType, GitHubClient, GiteaClient, GitPlatform, PlatformConfig};
+use crate::services::git_platforms::{Activity, ActivityType, GitHubClient, GiteaClient, GitLabClient, GitPlatform, PlatformConfig};
 use crate::utils::encryption;
 use anyhow::Result;
 use chrono::{DateTime, Datelike, Utc};
@@ -410,10 +410,7 @@ impl ActivityAggregationService {
     ) -> Box<dyn GitPlatform> {
         match platform_type {
             git_platform_account::GitPlatform::GitHub => Box::new(GitHubClient::new()),
-            git_platform_account::GitPlatform::GitLab => {
-                // TODO: Implement GitLab client
-                unimplemented!("GitLab not yet implemented")
-            }
+            git_platform_account::GitPlatform::GitLab => Box::new(GitLabClient::new()),
             git_platform_account::GitPlatform::Gitea => Box::new(GiteaClient::new()),
         }
     }
