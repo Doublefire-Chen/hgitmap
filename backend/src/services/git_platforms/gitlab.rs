@@ -61,7 +61,7 @@ impl GitLabClient {
 
         let response = client
             .get(&format!("{}/user", config.api_base_url))
-            .header("PRIVATE-TOKEN", token)
+            .header("Authorization", format!("Bearer {}", token))
             .header("accept", "application/json")
             .send()
             .await?;
@@ -111,7 +111,7 @@ impl GitLabClient {
 
             let response = client
                 .get(&url)
-                .header("PRIVATE-TOKEN", token)
+                .header("Authorization", format!("Bearer {}", token))
                 .header("accept", "application/json")
                 .send()
                 .await?;
@@ -168,7 +168,7 @@ impl GitPlatform for GitLabClient {
 
         let response = client
             .get(&format!("{}/user", config.api_base_url))
-            .header("PRIVATE-TOKEN", token)
+            .header("Authorization", format!("Bearer {}", token))
             .header("accept", "application/json")
             .send()
             .await?;
@@ -288,7 +288,7 @@ impl GitPlatform for GitLabClient {
 
             let response = client
                 .get(&url)
-                .header("PRIVATE-TOKEN", token)
+                .header("Authorization", format!("Bearer {}", token))
                 .header("accept", "application/json")
                 .send()
                 .await?;
@@ -452,7 +452,7 @@ impl GitPlatform for GitLabClient {
 
             let response = client
                 .get(&url)
-                .header("PRIVATE-TOKEN", token)
+                .header("Authorization", format!("Bearer {}", token))
                 .header("accept", "application/json")
                 .send()
                 .await?;
