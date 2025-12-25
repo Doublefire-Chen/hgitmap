@@ -27,6 +27,10 @@ pub struct ActivityResponse {
     pub primary_language: Option<String>,
     pub organization_name: Option<String>,
     pub organization_avatar_url: Option<String>,
+    // Platform information for generating correct URLs
+    pub platform: String,
+    pub platform_username: String,
+    pub platform_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -98,6 +102,12 @@ pub async fn get_activities(
 
     let account_ids: Vec<Uuid> = accounts.iter().map(|a| a.id).collect();
 
+    // Create a HashMap for quick platform account lookups
+    let accounts_map: std::collections::HashMap<Uuid, &git_platform_account::Model> = accounts
+        .iter()
+        .map(|a| (a.id, a))
+        .collect();
+
     // Build query for activities
     let mut activity_query = activity::Entity::find()
         .filter(activity::Column::GitPlatformAccountId.is_in(account_ids))
@@ -146,18 +156,26 @@ pub async fn get_activities(
 
     let activity_responses: Vec<ActivityResponse> = activities
         .into_iter()
-        .map(|a| ActivityResponse {
-            id: a.id.to_string(),
-            activity_type: format!("{:?}", a.activity_type),
-            date: a.activity_date.format("%Y-%m-%d").to_string(),
-            metadata: a.metadata,
-            repository_name: a.repository_name,
-            repository_url: a.repository_url,
-            is_private: a.is_private_repo,
-            count: a.count,
-            primary_language: a.primary_language,
-            organization_name: a.organization_name,
-            organization_avatar_url: a.organization_avatar_url,
+        .filter_map(|a| {
+            // Get platform account info for this activity
+            let account = accounts_map.get(&a.git_platform_account_id)?;
+
+            Some(ActivityResponse {
+                id: a.id.to_string(),
+                activity_type: format!("{:?}", a.activity_type),
+                date: a.activity_date.format("%Y-%m-%d").to_string(),
+                metadata: a.metadata,
+                repository_name: a.repository_name,
+                repository_url: a.repository_url,
+                is_private: a.is_private_repo,
+                count: a.count,
+                primary_language: a.primary_language,
+                organization_name: a.organization_name,
+                organization_avatar_url: a.organization_avatar_url,
+                platform: format!("{:?}", account.platform_type).to_lowercase(),
+                platform_username: account.platform_username.clone(),
+                platform_url: account.platform_url.clone(),
+            })
         })
         .collect();
 

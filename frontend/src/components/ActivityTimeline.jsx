@@ -8,6 +8,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
   const { user } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [error, setError] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -19,34 +20,49 @@ function ActivityTimeline({ platformFilter = 'all' }) {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 Loading activities with offset:', newOffset, 'platform:', platformFilter);
+      console.log('🔍 [ActivityTimeline] Loading activities with offset:', newOffset, 'platform:', platformFilter);
+      console.log('🔍 [ActivityTimeline] Current state - activities.length:', activities.length, 'initialLoadComplete:', initialLoadComplete);
 
       // Pass platform filter to API (null if 'all')
       const platform = platformFilter !== 'all' ? platformFilter : null;
       const data = await apiClient.getActivities(null, null, limit, newOffset, platform);
-      console.log('📦 Received activity data:', data);
+      console.log('📦 [ActivityTimeline] Received activity data:', data);
+      console.log('📦 [ActivityTimeline] Activities count:', data.activities?.length, 'has_more:', data.has_more);
 
       if (newOffset === 0) {
         // Initial load
+        console.log('✅ [ActivityTimeline] Initial load - setting activities and marking complete');
         setActivities(data.activities || []);
+        setInitialLoadComplete(true);
       } else {
         // Load more
+        console.log('➕ [ActivityTimeline] Loading more - appending activities');
         setActivities(prev => [...prev, ...(data.activities || [])]);
       }
 
       setHasMore(data.has_more);
       setOffset(newOffset);
 
-      console.log(`✅ Loaded ${data.activities?.length || 0} activities (total: ${data.total})`);
+      console.log(`✅ [ActivityTimeline] Loaded ${data.activities?.length || 0} activities (total: ${data.total})`);
     } catch (err) {
-      console.error('❌ Failed to load activities:', err);
+      console.error('❌ [ActivityTimeline] Failed to load activities:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+      console.log('🏁 [ActivityTimeline] Loading finished, loading state set to false');
     }
   }, [limit, platformFilter]);
 
   useEffect(() => {
+    console.log('🔄 [ActivityTimeline] useEffect triggered - resetting state');
+    console.log('🔄 [ActivityTimeline] platformFilter:', platformFilter);
+
+    // Reset state when platform filter changes
+    setInitialLoadComplete(false);
+    setActivities([]);
+    setOffset(0);
+
+    console.log('🚀 [ActivityTimeline] Calling loadActivities(0)');
     loadActivities(0);
 
     // Fetch platforms to get platform usernames
@@ -54,8 +70,9 @@ function ActivityTimeline({ platformFilter = 'all' }) {
       try {
         const platformsData = await apiClient.getPlatforms();
         setPlatforms(platformsData);
+        console.log('👥 [ActivityTimeline] Fetched platforms:', platformsData.length);
       } catch (err) {
-        console.error('Failed to fetch platforms:', err);
+        console.error('❌ [ActivityTimeline] Failed to fetch platforms:', err);
       }
     };
 
@@ -88,12 +105,12 @@ function ActivityTimeline({ platformFilter = 'all' }) {
     // Track processed activity IDs to avoid double-counting
     const processedActivityIds = new Set();
 
-    console.log('📊 Total activities to process:', activities.length);
+    console.log('📊 [groupActivitiesByMonth] Total activities to process:', activities.length);
 
-    activities.forEach(activity => {
+    activities.forEach((activity, index) => {
       // Skip if we've already processed this activity
       if (processedActivityIds.has(activity.id)) {
-        console.log('⚠️  Skipping duplicate activity ID:', activity.id, activity.activity_type);
+        console.log('⚠️  [groupActivitiesByMonth] Skipping duplicate activity ID:', activity.id, activity.activity_type);
         return;
       }
       processedActivityIds.add(activity.id);
@@ -102,26 +119,48 @@ function ActivityTimeline({ platformFilter = 'all' }) {
       const monthYear = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
 
       if (!groups[monthYear]) {
+        console.log('📅 [groupActivitiesByMonth] Creating new month group:', monthYear);
         groups[monthYear] = [];
       }
 
       groups[monthYear].push(activity);
+
+      if (index < 3) {
+        console.log(`   Activity ${index + 1}:`, activity.activity_type, 'on', activity.date, '→', monthYear);
+      }
     });
 
+    console.log('📊 [groupActivitiesByMonth] Final groups:', Object.keys(groups));
     return groups;
   };
 
   const generateAllMonths = (groupedActivities) => {
-    // Generate all months from 12 months ago to current month
-    const now = new Date();
-    const twelveMonthsAgo = new Date(now);
-    twelveMonthsAgo.setMonth(now.getMonth() - 11);
-    twelveMonthsAgo.setDate(1);
+    console.log('📅 [generateAllMonths] Starting with activities.length:', activities.length);
+    console.log('📅 [generateAllMonths] Grouped months:', Object.keys(groupedActivities));
+
+    // Only generate months for activities we've actually loaded
+    // Don't show empty months for data we haven't fetched yet
+    if (activities.length === 0) {
+      console.log('📅 [generateAllMonths] No activities, returning empty array');
+      return [];
+    }
+
+    // Find actual date range from loaded activities
+    const activityDates = activities.map(a => new Date(a.date));
+    const minDate = new Date(Math.min(...activityDates));
+    const maxDate = new Date(Math.max(...activityDates));
+
+    const startDate = new Date(minDate);
+    startDate.setDate(1); // First day of the month
+
+    const endDate = new Date(maxDate);
+
+    console.log('📅 [generateAllMonths] Activity range:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
 
     const allMonths = [];
-    const currentDate = new Date(twelveMonthsAgo);
+    const currentDate = new Date(startDate);
 
-    while (currentDate <= now) {
+    while (currentDate <= endDate) {
       const monthYear = `${currentDate.toLocaleString('default', { month: 'long' })} ${currentDate.getFullYear()}`;
 
       allMonths.push({
@@ -132,6 +171,8 @@ function ActivityTimeline({ platformFilter = 'all' }) {
 
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
+
+    console.log('📅 [generateAllMonths] Generated', allMonths.length, 'months');
 
     // Reverse to show most recent first
     return allMonths.reverse();
@@ -169,6 +210,31 @@ function ActivityTimeline({ platformFilter = 'all' }) {
     return type.replace(/([A-Z])/g, ' $1').trim();
   };
 
+  const getRepositoryUrl = (activity, repoName) => {
+    // If repository_url is already set, use it
+    if (activity.repository_url) {
+      return activity.repository_url;
+    }
+
+    // Otherwise construct URL based on platform
+    const platform = activity.platform?.toLowerCase();
+    const platformUrl = activity.platform_url;
+
+    if (platform === 'github') {
+      return `https://github.com/${repoName}`;
+    } else if (platform === 'gitea' && platformUrl) {
+      return `${platformUrl}/${repoName}`;
+    } else if (platform === 'gitlab') {
+      if (platformUrl) {
+        return `${platformUrl}/${repoName}`;
+      }
+      return `https://gitlab.com/${repoName}`;
+    }
+
+    // Fallback
+    return `https://github.com/${repoName}`;
+  };
+
   const renderActivity = (activity) => {
     const metadata = activity.metadata;
 
@@ -188,7 +254,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
               <div className="activity-details">
                 {repos.map((repo, idx) => (
                   <div key={idx} className="repository-item">
-                    <a href={`https://github.com/${repo.name}`} target="_blank" rel="noopener noreferrer">
+                    <a href={getRepositoryUrl(activity, repo.name)} target="_blank" rel="noopener noreferrer">
                       {repo.name}
                     </a>
                     <span className="commit-count">{repo.commit_count} commits</span>
@@ -218,7 +284,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
               <div className="activity-header">Created 1 repository</div>
               <div className="activity-details">
                 <div className="repository-item">
-                  <a href={activity.repository_url} target="_blank" rel="noopener noreferrer">
+                  <a href={getRepositoryUrl(activity, activity.repository_name)} target="_blank" rel="noopener noreferrer">
                     {activity.repository_name}
                   </a>
                   {activity.primary_language && (
@@ -253,7 +319,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
               <div className="activity-header-row">
                 <div className="activity-header">
                   {activity.activity_type === 'PullRequest' ? 'Created a pull request in' : 'Created an issue in'}{' '}
-                  <a href={activity.repository_url} target="_blank" rel="noopener noreferrer">
+                  <a href={getRepositoryUrl(activity, activity.repository_name)} target="_blank" rel="noopener noreferrer">
                     {activity.repository_name}
                   </a>
                   {metadata.comment_count !== undefined && metadata.comment_count > 0 && (
@@ -301,7 +367,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
               <div className="activity-header">{formatActivityType(activity.activity_type)}</div>
               {activity.repository_name && (
                 <div className="activity-details">
-                  <a href={activity.repository_url} target="_blank" rel="noopener noreferrer">
+                  <a href={getRepositoryUrl(activity, activity.repository_name)} target="_blank" rel="noopener noreferrer">
                     {activity.repository_name}
                   </a>
                 </div>
@@ -313,7 +379,16 @@ function ActivityTimeline({ platformFilter = 'all' }) {
     }
   };
 
+  console.log('🎨 [ActivityTimeline] RENDER - State:', {
+    loading,
+    initialLoadComplete,
+    activitiesCount: activities.length,
+    hasMore,
+    error: !!error
+  });
+
   if (error) {
+    console.log('❌ [ActivityTimeline] Rendering error message');
     return (
       <div className="activity-timeline">
         <div className="error-message">Failed to load activities: {error}</div>
@@ -321,11 +396,31 @@ function ActivityTimeline({ platformFilter = 'all' }) {
     );
   }
 
+  // Show loading state during initial load - don't render months until we have data
+  if (!initialLoadComplete) {
+    console.log('⏳ [ActivityTimeline] Rendering loading state (initialLoadComplete = false)');
+    return (
+      <div className="activity-timeline">
+        <div className="timeline-header">
+          <h2 className="timeline-title">Contribution activity</h2>
+        </div>
+        <div className="loading-message">Loading activities...</div>
+      </div>
+    );
+  }
+
+  console.log('📊 [ActivityTimeline] Initial load complete - processing activities');
   const groupedActivities = groupActivitiesByMonth();
+  console.log('📊 [ActivityTimeline] Grouped activities:', Object.keys(groupedActivities).length, 'months');
+
   const allMonths = generateAllMonths(groupedActivities);
+  console.log('📊 [ActivityTimeline] Generated months:', allMonths.length, 'months');
+  console.log('📊 [ActivityTimeline] Month details:', allMonths.map(m => ({ month: m.key, isEmpty: m.isEmpty, count: m.activities.length })));
 
   // Get platform username (prefer first platform's username)
   const platformUsername = platforms.length > 0 ? platforms[0].platform_username : (user?.username || 'User');
+
+  console.log('✅ [ActivityTimeline] Rendering timeline with', allMonths.length, 'months');
 
   return (
     <div className="activity-timeline">
@@ -333,10 +428,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
         <h2 className="timeline-title">Contribution activity</h2>
       </div>
 
-      {loading && activities.length === 0 ? (
-        <div className="loading-message">Loading activities...</div>
-      ) : (
-        <div className="timeline-content">
+      <div className="timeline-content">
           {allMonths.map((month) => (
             <div key={month.key} className="month-group">
               <h3 className="month-header">{month.key}</h3>
@@ -364,7 +456,6 @@ function ActivityTimeline({ platformFilter = 'all' }) {
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }
