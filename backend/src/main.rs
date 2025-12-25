@@ -110,6 +110,8 @@ async fn main() -> std::io::Result<()> {
                             .wrap(crate::middleware::auth::JwtMiddleware)
                     )
                     .route("/gitea/callback", web::get().to(handlers::oauth::gitea_callback))
+                    // Public endpoint to list available OAuth instances
+                    .route("/instances/{platform}", web::get().to(handlers::oauth::list_oauth_instances))
             )
             // Protected endpoints (JWT required)
             .service(

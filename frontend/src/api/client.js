@@ -192,6 +192,12 @@ class ApiClient {
     return response.authorization_url;
   }
 
+  async listOAuthInstances(platform) {
+    // This is a public endpoint, but we still use fetchWithAuth for consistency
+    const response = await this.fetchWithAuth(`/oauth/instances/${platform}`);
+    return response;
+  }
+
   // Admin - OAuth Apps Management
   async listOAuthApps() {
     return this.fetchWithAuth('/admin/oauth-apps');

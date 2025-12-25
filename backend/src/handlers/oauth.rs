@@ -751,3 +751,67 @@ struct GiteaTokenResponse {
     error: Option<String>,
     error_description: Option<String>,
 }
+
+// ============================================================================
+// OAuth Instance Discovery
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct OAuthInstanceResponse {
+    pub instance_url: String,
+    pub instance_name: String,
+    pub is_default: bool,
+}
+
+/// GET /oauth/instances/:platform
+/// List available OAuth instances for a platform (public endpoint)
+pub async fn list_oauth_instances(
+    db: web::Data<DatabaseConnection>,
+    path: web::Path<String>,
+) -> Result<impl Responder, actix_web::Error> {
+    let platform_str = path.into_inner();
+
+    log::info!("📋 Listing available OAuth instances for platform: {}", platform_str);
+
+    // Parse platform
+    let platform = match platform_str.as_str() {
+        "github" => git_platform_account::GitPlatform::GitHub,
+        "gitea" => git_platform_account::GitPlatform::Gitea,
+        "gitlab" => git_platform_account::GitPlatform::GitLab,
+        _ => {
+            return Ok(HttpResponse::BadRequest().json(OAuthErrorResponse {
+                error: format!("Unsupported platform: {}", platform_str),
+            }));
+        }
+    };
+
+    // Find all enabled OAuth apps for this platform
+    let apps = oauth_application::Entity::find()
+        .filter(oauth_application::Column::Platform.eq(platform))
+        .filter(oauth_application::Column::IsEnabled.eq(true))
+        .order_by_desc(oauth_application::Column::IsDefault)
+        .all(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("❌ Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?;
+
+    if apps.is_empty() {
+        log::warn!("⚠️  No OAuth apps configured for platform: {}", platform_str);
+        return Ok(HttpResponse::Ok().json(Vec::<OAuthInstanceResponse>::new()));
+    }
+
+    let instances: Vec<OAuthInstanceResponse> = apps
+        .into_iter()
+        .map(|app| OAuthInstanceResponse {
+            instance_url: app.instance_url,
+            instance_name: app.instance_name,
+            is_default: app.is_default,
+        })
+        .collect();
+
+    log::info!("✅ Found {} OAuth instance(s) for {}", instances.len(), platform_str);
+
+    Ok(HttpResponse::Ok().json(instances))
+}

@@ -304,19 +304,20 @@ pub async fn disconnect_platform(
         return Err(actix_web::error::ErrorForbidden("Not authorized"));
     }
 
-    // Mark as inactive instead of deleting (soft delete)
-    let mut account: git_platform_account::ActiveModel = account.into();
-    account.is_active = Set(false);
-    account.updated_at = Set(chrono::Utc::now());
+    log::info!("🗑️  Deleting platform account and all related data for account ID: {}", account_id);
 
-    account.update(db.as_ref()).await.map_err(|e| {
-        log::error!("Failed to deactivate account: {}", e);
-        actix_web::error::ErrorInternalServerError("Failed to disconnect account")
-    })?;
+    // Delete the account (CASCADE will delete all contributions and activities)
+    git_platform_account::Entity::delete_by_id(account_id)
+        .exec(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete account: {}", e);
+            actix_web::error::ErrorInternalServerError("Failed to disconnect account")
+        })?;
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({
-        "message": "Platform disconnected successfully"
-    })))
+    log::info!("✅ Platform account deleted successfully. All related contributions and activities have been removed.");
+
+    Ok(HttpResponse::NoContent().finish())
 }
 
 /// PUT /api/platforms/:id/sync-preferences

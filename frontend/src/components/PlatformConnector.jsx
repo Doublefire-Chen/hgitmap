@@ -18,6 +18,8 @@ function PlatformConnector() {
   const [showGiteaOAuthForm, setShowGiteaOAuthForm] = useState(false);
   const [giteaOAuthInstanceUrl, setGiteaOAuthInstanceUrl] = useState('');
   const [giteaOAuthError, setGiteaOAuthError] = useState(null);
+  const [giteaInstances, setGiteaInstances] = useState([]);
+  const [loadingGiteaInstances, setLoadingGiteaInstances] = useState(false);
 
   useEffect(() => {
     loadPlatforms();
@@ -53,8 +55,8 @@ function PlatformConnector() {
   const handleConnectGiteaOAuth = async () => {
     console.log('🔐 [Gitea OAuth] Starting OAuth flow');
 
-    if (!giteaOAuthInstanceUrl.trim()) {
-      setGiteaOAuthError('Please enter your Gitea instance URL');
+    if (!giteaOAuthInstanceUrl) {
+      setGiteaOAuthError('Please select a Gitea instance');
       return;
     }
 
@@ -67,6 +69,39 @@ function PlatformConnector() {
     } catch (err) {
       console.error('❌ [Gitea OAuth] Failed to start OAuth flow:', err);
       setGiteaOAuthError(`Failed to start OAuth flow: ${err.message}`);
+    }
+  };
+
+  const handleShowGiteaOAuth = async () => {
+    setLoadingGiteaInstances(true);
+    setGiteaOAuthError(null);
+    setShowGiteaOAuthForm(true);
+
+    try {
+      // Fetch available Gitea OAuth instances
+      const instances = await apiClient.listOAuthInstances('gitea');
+      console.log('📋 Available Gitea instances:', instances);
+
+      if (instances.length === 0) {
+        setGiteaOAuthError('No Gitea OAuth apps configured. Please ask your administrator to configure a Gitea OAuth app in the admin panel.');
+        setGiteaInstances([]);
+      } else {
+        setGiteaInstances(instances);
+        // Auto-select the default instance or first instance
+        const defaultInstance = instances.find(i => i.is_default) || instances[0];
+        setGiteaOAuthInstanceUrl(defaultInstance.instance_url);
+
+        // If only one instance, we can show a simpler UI
+        if (instances.length === 1) {
+          console.log(`✅ Auto-selected single Gitea instance: ${defaultInstance.instance_name}`);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Failed to fetch Gitea instances:', err);
+      setGiteaOAuthError(`Failed to load Gitea instances: ${err.message}`);
+      setGiteaInstances([]);
+    } finally {
+      setLoadingGiteaInstances(false);
     }
   };
 
@@ -257,10 +292,7 @@ function PlatformConnector() {
             <button className="btn btn-primary" onClick={handleConnectOAuth}>
               Connect GitHub with OAuth
             </button>
-            <button className="btn btn-primary" onClick={() => {
-              setShowGiteaOAuthForm(true);
-              setGiteaOAuthError(null);
-            }}>
+            <button className="btn btn-primary" onClick={handleShowGiteaOAuth}>
               Connect Gitea with OAuth
             </button>
             <button className="btn btn-secondary" onClick={() => {
@@ -273,33 +305,58 @@ function PlatformConnector() {
         ) : showGiteaOAuthForm ? (
           <div className="gitea-oauth-form">
             <h4>Connect Gitea with OAuth</h4>
-            <p className="form-hint">
-              Enter your Gitea instance URL to connect via OAuth. Make sure you have configured the OAuth application in your admin panel.
-            </p>
 
-            {giteaOAuthError && <div className="error-message">{giteaOAuthError}</div>}
+            {loadingGiteaInstances ? (
+              <p className="form-hint">Loading available Gitea instances...</p>
+            ) : giteaInstances.length === 0 ? (
+              <>
+                {giteaOAuthError && <div className="error-message">{giteaOAuthError}</div>}
+                <p className="form-hint">
+                  No Gitea OAuth applications are configured. Please ask your administrator to add a Gitea OAuth app in the admin panel at <code>/admin/oauth-apps</code>.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="form-hint">
+                  {giteaInstances.length === 1
+                    ? `Connecting to: ${giteaInstances[0].instance_name}`
+                    : 'Select which Gitea instance you want to connect to:'}
+                </p>
 
-            <div className="instance-url-input">
-              <label htmlFor="gitea-oauth-instance-url">Gitea Instance URL:</label>
-              <input
-                id="gitea-oauth-instance-url"
-                type="url"
-                value={giteaOAuthInstanceUrl}
-                onChange={(e) => setGiteaOAuthInstanceUrl(e.target.value)}
-                placeholder="https://gitea.example.com"
-                className="instance-url"
-              />
-              <p className="input-hint">Enter the full URL of your Gitea instance (e.g., https://gitea.example.com)</p>
-            </div>
+                {giteaOAuthError && <div className="error-message">{giteaOAuthError}</div>}
+
+                {giteaInstances.length > 1 && (
+                  <div className="instance-selector">
+                    <label htmlFor="gitea-instance-select">Gitea Instance:</label>
+                    <select
+                      id="gitea-instance-select"
+                      value={giteaOAuthInstanceUrl}
+                      onChange={(e) => setGiteaOAuthInstanceUrl(e.target.value)}
+                      className="instance-select"
+                    >
+                      {giteaInstances.map((instance) => (
+                        <option key={instance.instance_url} value={instance.instance_url}>
+                          {instance.instance_name} ({instance.instance_url})
+                          {instance.is_default ? ' [Default]' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            )}
 
             <div className="pat-form-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleConnectGiteaOAuth}
-              >
-                Connect
-              </button>
+              {giteaInstances.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleConnectGiteaOAuth}
+                  disabled={loadingGiteaInstances}
+                >
+                  Connect
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -307,7 +364,9 @@ function PlatformConnector() {
                   setShowGiteaOAuthForm(false);
                   setGiteaOAuthInstanceUrl('');
                   setGiteaOAuthError(null);
+                  setGiteaInstances([]);
                 }}
+                disabled={loadingGiteaInstances}
               >
                 Cancel
               </button>
