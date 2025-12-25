@@ -187,6 +187,11 @@ class ApiClient {
     return response.authorization_url;
   }
 
+  async startGiteaOAuth(instanceUrl) {
+    const response = await this.fetchWithAuth(`/oauth/gitea/authorize?instance_url=${encodeURIComponent(instanceUrl)}`);
+    return response.authorization_url;
+  }
+
   // Admin - OAuth Apps Management
   async listOAuthApps() {
     return this.fetchWithAuth('/admin/oauth-apps');

@@ -15,6 +15,9 @@ function PlatformConnector() {
   const [syncingPlatformId, setSyncingPlatformId] = useState(null);
   const [selectedSyncYear, setSelectedSyncYear] = useState({});
   const [syncingProfileId, setSyncingProfileId] = useState(null);
+  const [showGiteaOAuthForm, setShowGiteaOAuthForm] = useState(false);
+  const [giteaOAuthInstanceUrl, setGiteaOAuthInstanceUrl] = useState('');
+  const [giteaOAuthError, setGiteaOAuthError] = useState(null);
 
   useEffect(() => {
     loadPlatforms();
@@ -44,6 +47,26 @@ function PlatformConnector() {
     } catch (err) {
       console.error('❌ [OAuth] Failed to start OAuth flow:', err);
       setError(`Failed to start OAuth flow: ${err.message}`);
+    }
+  };
+
+  const handleConnectGiteaOAuth = async () => {
+    console.log('🔐 [Gitea OAuth] Starting OAuth flow');
+
+    if (!giteaOAuthInstanceUrl.trim()) {
+      setGiteaOAuthError('Please enter your Gitea instance URL');
+      return;
+    }
+
+    try {
+      setGiteaOAuthError(null);
+      // Get OAuth authorization URL from backend (includes state token)
+      const authUrl = await apiClient.startGiteaOAuth(giteaOAuthInstanceUrl);
+      console.log(`🚀 [Gitea OAuth] Redirecting to: ${authUrl}`);
+      window.location.href = authUrl;
+    } catch (err) {
+      console.error('❌ [Gitea OAuth] Failed to start OAuth flow:', err);
+      setGiteaOAuthError(`Failed to start OAuth flow: ${err.message}`);
     }
   };
 
@@ -229,10 +252,16 @@ function PlatformConnector() {
       <div className="connect-platform-section">
         <h3>Connect Platform</h3>
 
-        {!showPATForm ? (
+        {!showPATForm && !showGiteaOAuthForm ? (
           <div className="connect-buttons">
             <button className="btn btn-primary" onClick={handleConnectOAuth}>
               Connect GitHub with OAuth
+            </button>
+            <button className="btn btn-primary" onClick={() => {
+              setShowGiteaOAuthForm(true);
+              setGiteaOAuthError(null);
+            }}>
+              Connect Gitea with OAuth
             </button>
             <button className="btn btn-secondary" onClick={() => {
               setSelectedPlatform('github');
@@ -240,6 +269,49 @@ function PlatformConnector() {
             }}>
               Connect with Personal Access Token
             </button>
+          </div>
+        ) : showGiteaOAuthForm ? (
+          <div className="gitea-oauth-form">
+            <h4>Connect Gitea with OAuth</h4>
+            <p className="form-hint">
+              Enter your Gitea instance URL to connect via OAuth. Make sure you have configured the OAuth application in your admin panel.
+            </p>
+
+            {giteaOAuthError && <div className="error-message">{giteaOAuthError}</div>}
+
+            <div className="instance-url-input">
+              <label htmlFor="gitea-oauth-instance-url">Gitea Instance URL:</label>
+              <input
+                id="gitea-oauth-instance-url"
+                type="url"
+                value={giteaOAuthInstanceUrl}
+                onChange={(e) => setGiteaOAuthInstanceUrl(e.target.value)}
+                placeholder="https://gitea.example.com"
+                className="instance-url"
+              />
+              <p className="input-hint">Enter the full URL of your Gitea instance (e.g., https://gitea.example.com)</p>
+            </div>
+
+            <div className="pat-form-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleConnectGiteaOAuth}
+              >
+                Connect
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  setShowGiteaOAuthForm(false);
+                  setGiteaOAuthInstanceUrl('');
+                  setGiteaOAuthError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleConnectPAT} className="pat-form">

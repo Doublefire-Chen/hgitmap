@@ -205,7 +205,8 @@ CREATE TABLE oauth_states (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     platform git_platform NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    instance_url VARCHAR(500) -- Instance URL for self-hosted platforms (Gitea/GitLab OAuth)
 );
 
 CREATE INDEX idx_oauth_states_token ON oauth_states(state_token);

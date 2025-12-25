@@ -13,6 +13,7 @@ pub struct Model {
     pub platform: GitPlatform,
     pub created_at: ChronoDateTimeUtc,
     pub expires_at: ChronoDateTimeUtc,
+    pub instance_url: Option<String>, // For self-hosted instances (Gitea/GitLab)
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

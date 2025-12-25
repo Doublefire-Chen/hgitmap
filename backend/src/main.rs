@@ -60,6 +60,8 @@ async fn main() -> std::io::Result<()> {
     println!("   - POST http://{}:{}/auth/login", host, port);
     println!("   - GET  http://{}:{}/oauth/github/authorize", host, port);
     println!("   - GET  http://{}:{}/oauth/github/callback", host, port);
+    println!("   - GET  http://{}:{}/oauth/gitea/authorize", host, port);
+    println!("   - GET  http://{}:{}/oauth/gitea/callback", host, port);
     println!("   - POST http://{}:{}/platforms/connect (JWT required)", host, port);
     println!("   - GET  http://{}:{}/platforms (JWT required)", host, port);
     println!("   - GET  http://{}:{}/contributions (JWT required)", host, port);
@@ -101,6 +103,13 @@ async fn main() -> std::io::Result<()> {
                             .wrap(crate::middleware::auth::JwtMiddleware)
                     )
                     .route("/github/callback", web::get().to(handlers::oauth::github_callback))
+                    .route(
+                        "/gitea/authorize",
+                        web::get()
+                            .to(handlers::oauth::gitea_authorize)
+                            .wrap(crate::middleware::auth::JwtMiddleware)
+                    )
+                    .route("/gitea/callback", web::get().to(handlers::oauth::gitea_callback))
             )
             // Protected endpoints (JWT required)
             .service(
