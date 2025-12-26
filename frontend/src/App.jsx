@@ -4,12 +4,13 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import ApiClientSetup from './components/ApiClientSetup';
 import ProtectedRoute from './components/ProtectedRoute';
+import SettingsLayout from './components/SettingsLayout';
+import UserSettings from './components/UserSettings';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
+import PlatformManagement from './pages/PlatformManagement';
 import OAuthCallback from './pages/OAuthCallback';
-import Settings from './pages/Settings';
-import AdminOAuthApps from './pages/AdminOAuthApps';
 import HeatmapThemes from './pages/HeatmapThemes';
 import ThemeEditor from './pages/ThemeEditor';
 import GenerationSettings from './pages/GenerationSettings';
@@ -37,58 +38,27 @@ function App() {
               path="/settings"
               element={
                 <ProtectedRoute>
-                  <Settings />
+                  <SettingsLayout />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/admin/oauth-apps"
-              element={
-                <ProtectedRoute>
-                  <AdminOAuthApps />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/heatmap/themes"
-              element={
-                <ProtectedRoute>
-                  <HeatmapThemes />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/heatmap/themes/new"
-              element={
-                <ProtectedRoute>
-                  <ThemeEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/heatmap/themes/:slug/edit"
-              element={
-                <ProtectedRoute>
-                  <ThemeEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/heatmap/settings"
-              element={
-                <ProtectedRoute>
-                  <GenerationSettings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/sync/settings"
-              element={
-                <ProtectedRoute>
-                  <SyncSettings />
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route index element={<UserSettings />} />
+              <Route path="platforms" element={<PlatformManagement />} />
+              <Route path="oauth-apps" element={<PlatformManagement />} />
+              <Route path="themes" element={<HeatmapThemes />} />
+              <Route path="themes/new" element={<ThemeEditor />} />
+              <Route path="themes/:slug/edit" element={<ThemeEditor />} />
+              <Route path="generation" element={<GenerationSettings />} />
+              <Route path="sync" element={<SyncSettings />} />
+            </Route>
+            {/* Legacy routes - redirect to new structure */}
+            <Route path="/platforms" element={<Navigate to="/settings/platforms" replace />} />
+            <Route path="/admin/oauth-apps" element={<Navigate to="/settings/oauth-apps" replace />} />
+            <Route path="/heatmap/themes" element={<Navigate to="/settings/themes" replace />} />
+            <Route path="/heatmap/themes/new" element={<Navigate to="/settings/themes/new" replace />} />
+            <Route path="/heatmap/themes/:slug/edit" element={<Navigate to="/settings/themes/:slug/edit" replace />} />
+            <Route path="/heatmap/settings" element={<Navigate to="/settings/generation" replace />} />
+            <Route path="/sync/settings" element={<Navigate to="/settings/sync" replace />} />
             <Route
               path="/oauth/callback"
               element={

@@ -48,43 +48,30 @@
   font-size: 14px;
 }
 
-.settings-btn {
-  padding: 5px 16px;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 32px;
-  text-decoration: none;
+.icon-btn {
   display: inline-flex;
   align-items: center;
-}
-
-.settings-btn:hover {
-  background-color: var(--bg-secondary);
-  border-color: var(--border-emphasis);
-}
-
-.logout-btn {
-  padding: 5px 16px;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 500;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 32px;
+  text-decoration: none;
 }
 
-.logout-btn:hover {
-  background-color: var(--bg-secondary);
-  border-color: var(--border-emphasis);
+.icon-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.icon-btn svg {
+  display: block;
 }
 
 .tabs-container {
