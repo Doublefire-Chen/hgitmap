@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import apiClient from '../api/client';
+import PlatformIcon from './PlatformIcon';
 import './UserProfile.css';
-import GitHubLogoLight from '../assets/github-light.svg';
-import GitHubLogoDark from '../assets/github-dark.svg';
 
 const UserProfile = () => {
   const { user } = useAuth();
@@ -45,16 +44,6 @@ const UserProfile = () => {
   // Generate fallback avatar URL (using UI Avatars service)
   const getFallbackAvatarUrl = (username) => {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&size=260&background=random&bold=true`;
-  };
-
-  // Get platform logo
-  const getPlatformLogo = (platformType) => {
-    switch (platformType) {
-      case 'github':
-        return theme === 'dark' ? GitHubLogoDark : GitHubLogoLight;
-      default:
-        return null;
-    }
   };
 
   // Get platform name
@@ -104,13 +93,7 @@ const UserProfile = () => {
           {platforms.map((platform) => (
             <div key={platform.id} className="platform-profile-card">
               <div className="platform-header">
-                {getPlatformLogo(platform.platform) && (
-                  <img
-                    src={getPlatformLogo(platform.platform)}
-                    alt={getPlatformName(platform.platform)}
-                    className="platform-logo"
-                  />
-                )}
+                <PlatformIcon platform={platform.platform} size={20} />
                 <span className="platform-type-name">
                   {getPlatformName(platform.platform).toUpperCase()}
                 </span>

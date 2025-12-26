@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../api/client';
+import PlatformIcon from './PlatformIcon';
 import './PlatformConnector.css';
 
 function PlatformConnector() {
@@ -282,7 +283,8 @@ function PlatformConnector() {
                 <div className="platform-details">
                   <h3>{platform.platform_username}</h3>
                   <span className="platform-name">
-                    {platform.platform.charAt(0).toUpperCase() + platform.platform.slice(1)}
+                    <PlatformIcon platform={platform.platform} size={16} />
+                    <span>{platform.platform.charAt(0).toUpperCase() + platform.platform.slice(1)}</span>
                   </span>
                   {platform.last_synced_at && (
                     <span className="last-sync">
@@ -351,12 +353,15 @@ function PlatformConnector() {
         {!showPATForm && !showGiteaOAuthForm && !showGitlabOAuthForm ? (
           <div className="connect-buttons">
             <button className="btn btn-primary" onClick={handleConnectOAuth}>
+              <PlatformIcon platform="github" size={16} />
               Connect GitHub with OAuth
             </button>
             <button className="btn btn-primary" onClick={handleShowGiteaOAuth}>
+              <PlatformIcon platform="gitea" size={16} />
               Connect Gitea with OAuth
             </button>
             <button className="btn btn-primary" onClick={handleShowGitlabOAuth}>
+              <PlatformIcon platform="gitlab" size={16} />
               Connect GitLab with OAuth
             </button>
             <button className="btn btn-secondary" onClick={() => {

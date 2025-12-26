@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import apiClient from '../api/client';
+import PlatformIcon from './PlatformIcon';
 import './OAuthAppsManager.css';
 
 export default function OAuthAppsManager() {
@@ -174,11 +175,11 @@ export default function OAuthAppsManager() {
                 <div key={app.id} className={`app-card ${!app.is_enabled ? 'disabled' : ''}`}>
                   <div className="app-header">
                     <div className="app-title">
-                      <h3>{app.instance_name}</h3>
+                      <div className="app-title-row">
+                        <PlatformIcon platform={app.platform} size={24} />
+                        <h3>{app.instance_name}</h3>
+                      </div>
                       <div className="app-badges">
-                        <span className={`badge badge-${app.platform.toLowerCase()}`}>
-                          {app.platform}
-                        </span>
                         {app.is_default && <span className="badge badge-default">Default</span>}
                         {!app.is_enabled && <span className="badge badge-disabled">Disabled</span>}
                       </div>
