@@ -1,6 +1,14 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 class ApiClient {
+  constructor() {
+    this.isHandlingExpiration = false;
+    this.onSessionExpired = null; // Callback for session expiration
+  }
+
+  setSessionExpiredCallback(callback) {
+    this.onSessionExpired = callback;
+  }
   async register(username, password) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
@@ -67,13 +75,24 @@ class ApiClient {
 
     if (response.status === 401) {
       console.error('❌ [API] Unauthorized - token expired');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
 
-      // Show alert to user about session expiration
-      alert('Your session has expired. Please log in again.');
+      // Only handle expiration once, even if multiple API calls fail simultaneously
+      if (!this.isHandlingExpiration) {
+        this.isHandlingExpiration = true;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
 
-      window.location.href = '/login';
+        // Show toast notification instead of alert
+        if (this.onSessionExpired) {
+          this.onSessionExpired();
+        }
+
+        // Wait 3 seconds to let user see the toast message before redirect
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 3000);
+      }
+
       // Return a promise that never resolves to prevent further execution
       return new Promise(() => {});
     }
