@@ -1,30 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useLocation } from 'react-router-dom';
 import PlatformConnector from '../components/PlatformConnector';
 import OAuthAppsManager from '../components/OAuthAppsManager';
 import './PlatformManagement.css';
 
 export default function PlatformManagement() {
   const { user } = useAuth();
-  const location = useLocation();
-
-  // Default to 'oauth-apps' tab if user is admin and came from /settings/oauth-apps route
-  const [activeTab, setActiveTab] = useState(() => {
-    if (user?.is_admin && location.pathname.includes('oauth-apps')) {
-      return 'oauth-apps';
-    }
-    return 'platforms';
-  });
-
-  // Update tab when location changes
-  useEffect(() => {
-    if (location.pathname.includes('oauth-apps') && user?.is_admin) {
-      setActiveTab('oauth-apps');
-    } else if (location.pathname.includes('platforms')) {
-      setActiveTab('platforms');
-    }
-  }, [location.pathname, user?.is_admin]);
+  const [activeTab, setActiveTab] = useState('platforms');
 
   return (
     <div className="platform-management">

@@ -44,7 +44,6 @@ function App() {
             >
               <Route index element={<UserSettings />} />
               <Route path="platforms" element={<PlatformManagement />} />
-              <Route path="oauth-apps" element={<PlatformManagement />} />
               <Route path="themes" element={<HeatmapThemes />} />
               <Route path="themes/new" element={<ThemeEditor />} />
               <Route path="themes/:slug/edit" element={<ThemeEditor />} />
@@ -53,7 +52,7 @@ function App() {
             </Route>
             {/* Legacy routes - redirect to new structure */}
             <Route path="/platforms" element={<Navigate to="/settings/platforms" replace />} />
-            <Route path="/admin/oauth-apps" element={<Navigate to="/settings/oauth-apps" replace />} />
+            <Route path="/admin/oauth-apps" element={<Navigate to="/settings/platforms" replace />} />
             <Route path="/heatmap/themes" element={<Navigate to="/settings/themes" replace />} />
             <Route path="/heatmap/themes/new" element={<Navigate to="/settings/themes/new" replace />} />
             <Route path="/heatmap/themes/:slug/edit" element={<Navigate to="/settings/themes/:slug/edit" replace />} />
