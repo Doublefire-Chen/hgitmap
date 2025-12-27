@@ -137,14 +137,22 @@ class ApiClient {
     });
   }
 
-  async syncPlatform(platformId, allYears = false, year = null) {
-    let queryParam = '';
-    if (allYears) {
-      queryParam = '?all_years=true';
-    } else if (year) {
-      queryParam = `?year=${year}`;
+  async syncPlatform(platformId, allYears = false, year = null, profileOnly = false) {
+    let queryParams = [];
+
+    if (profileOnly) {
+      queryParams.push('profile_only=true');
+    } else {
+      if (allYears) {
+        queryParams.push('all_years=true');
+      } else if (year) {
+        queryParams.push(`year=${year}`);
+      }
     }
-    return this.fetchWithAuth(`/platforms/${platformId}/sync${queryParam}`, {
+
+    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+
+    return this.fetchWithAuth(`/platforms/${platformId}/sync${queryString}`, {
       method: 'POST',
     });
   }

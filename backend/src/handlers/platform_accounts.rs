@@ -555,8 +555,17 @@ pub async fn sync_platform(
             actix_web::error::ErrorInternalServerError("Decryption failed")
         })?;
 
-    log::info!("🔄 [Sync] Starting contribution sync for account: {}", account_id);
+    log::info!("🔄 [Sync] Starting sync for account: {}", account_id);
     log::info!("🔄 [Sync] Platform: {:?}, Username: {}", account.platform_type, account.platform_username);
+
+    // Check if this is profile-only sync
+    let profile_only = query.get("profile_only")
+        .map(|v| v == "true")
+        .unwrap_or(false);
+
+    if profile_only {
+        log::info!("👤 [Sync] Profile-only mode enabled - skipping contributions sync");
+    }
 
     // Check sync mode: all_years, specific year, or current year (default)
     let sync_all_years = query.get("all_years")
@@ -566,8 +575,10 @@ pub async fn sync_platform(
     let specific_year = query.get("year")
         .and_then(|v| v.parse::<i32>().ok());
 
-    // Fetch contributions from GitHub
-    match account.platform_type {
+    // Sync contributions only if not profile_only mode
+    if !profile_only {
+        // Fetch contributions from GitHub
+        match account.platform_type {
         git_platform_account::GitPlatform::GitHub => {
             let github_client = GitHubClient::new();
             let platform_config = PlatformConfig::github();
@@ -665,7 +676,7 @@ pub async fn sync_platform(
 
             log::info!("💾 [Sync] Stored contributions: {} inserted", total_inserted);
 
-            // Sync profile data if enabled (synced only once, regardless of date range)
+        // Sync profile data if enabled (synced only once, regardless of date range)
             let account_for_profile = git_platform_account::Entity::find_by_id(account_id)
                 .one(db.as_ref())
                 .await
@@ -848,7 +859,7 @@ pub async fn sync_platform(
 
             log::info!("💾 [Sync] Stored contributions: {} inserted", total_inserted);
 
-            // Sync profile data if enabled (synced only once, regardless of date range)
+        // Sync profile data if enabled (synced only once, regardless of date range)
             let account_for_profile = git_platform_account::Entity::find_by_id(account_id)
                 .one(db.as_ref())
                 .await
@@ -1037,7 +1048,7 @@ pub async fn sync_platform(
 
             log::info!("💾 [Sync] Stored contributions: {} inserted", total_inserted);
 
-            // Sync profile data if enabled (synced only once, regardless of date range)
+        // Sync profile data if enabled (synced only once, regardless of date range)
             let account_for_profile = git_platform_account::Entity::find_by_id(account_id)
                 .one(db.as_ref())
                 .await
@@ -1127,7 +1138,7 @@ pub async fn sync_platform(
                 log::debug!("[Sync] Profile sync disabled for this account");
             }
         }
-    }
+    }  // End of match account.platform_type
 
     // Sync activities if contributions are enabled (they always sync together)
     let account_for_activities = git_platform_account::Entity::find_by_id(account_id)
@@ -1178,6 +1189,7 @@ pub async fn sync_platform(
     } else {
         log::debug!("[Sync] Contribution sync disabled, skipping activities (always synced together)");
     }
+    }  // End of if !profile_only
 
     // Update last_synced_at timestamp
     let account_for_timestamp = git_platform_account::Entity::find_by_id(account_id)

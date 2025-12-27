@@ -243,8 +243,8 @@ function PlatformConnector() {
     try {
       setSyncingProfileId(platformId);
 
-      // Sync current year only to minimize data transfer - this will update profile data
-      await apiClient.syncPlatform(platformId, false, null);
+      // Sync profile only - do not sync contributions
+      await apiClient.syncPlatform(platformId, false, null, true);
 
       alert('Profile synced successfully! Avatar, bio, and other profile details have been updated.');
       await loadPlatforms();
