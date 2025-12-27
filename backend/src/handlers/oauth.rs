@@ -16,13 +16,30 @@ pub struct OAuthAuthorizeQuery {
 
 #[derive(Debug, Deserialize)]
 pub struct GitHubCallbackQuery {
-    pub code: String,
+    pub code: Option<String>,
     pub state: Option<String>,
+    pub error: Option<String>,
+    pub error_description: Option<String>,
+    #[allow(dead_code)]
+    pub error_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 struct OAuthErrorResponse {
     error: String,
+}
+
+/// Transform OAuth error messages from third-person to second-person
+fn transform_error_message(message: &str) -> String {
+    // Transform common OAuth error messages to be more user-friendly
+    if message.contains("denied") || message.contains("access_denied") {
+        "You cancelled the authorization.".to_string()
+    } else {
+        // Replace "The user" with "You" for other messages
+        message
+            .replace("The user has", "You have")
+            .replace("The user", "You")
+    }
 }
 
 /// Helper function to get OAuth credentials for a platform from database
@@ -167,10 +184,36 @@ pub async fn github_callback(
     query: web::Query<GitHubCallbackQuery>,
 ) -> Result<impl Responder, actix_web::Error> {
     log::info!("🔄 GitHub OAuth callback received");
-    log::debug!("Code: {}...", &query.code.chars().take(10).collect::<String>());
-    log::debug!("State: {:?}", query.state);
 
-    let code = &query.code;
+    // Check if user denied authorization
+    if let Some(error) = &query.error {
+        log::warn!("❌ GitHub OAuth authorization denied: {}", error);
+
+        let original_message = query.error_description
+            .as_deref()
+            .unwrap_or("Authorization was denied");
+
+        let error_message = transform_error_message(original_message);
+
+        let redirect_url = format!(
+            "{}/oauth/callback?error={}",
+            config.base_url.replace(":3000", ":5173"),
+            urlencoding::encode(&error_message)
+        );
+
+        return Ok(HttpResponse::Found()
+            .append_header(("Location", redirect_url))
+            .finish());
+    }
+
+    // Get the authorization code
+    let code = query.code.as_ref().ok_or_else(|| {
+        log::error!("❌ Missing code parameter in OAuth callback");
+        actix_web::error::ErrorBadRequest("Missing authorization code")
+    })?;
+
+    log::debug!("Code: {}...", &code.chars().take(10).collect::<String>());
+    log::debug!("State: {:?}", query.state);
 
     // Validate state token
     let state_token = query.state.as_ref().ok_or_else(|| {
@@ -326,7 +369,7 @@ pub async fn github_callback(
     }
 
     // Redirect to frontend with success
-    let redirect_url = format!("{}/?oauth=success", config.base_url.replace(":3000", ":5173"));
+    let redirect_url = format!("{}/oauth/callback?oauth=success", config.base_url.replace(":3000", ":5173"));
     log::info!("🎉 OAuth flow complete! Redirecting to: {}", redirect_url);
 
     Ok(HttpResponse::Found()
@@ -498,8 +541,10 @@ pub async fn gitea_authorize(
 
 #[derive(Debug, Deserialize)]
 pub struct GiteaCallbackQuery {
-    pub code: String,
+    pub code: Option<String>,
     pub state: Option<String>,
+    pub error: Option<String>,
+    pub error_description: Option<String>,
 }
 
 /// GET /oauth/gitea/callback
@@ -510,10 +555,36 @@ pub async fn gitea_callback(
     query: web::Query<GiteaCallbackQuery>,
 ) -> Result<impl Responder, actix_web::Error> {
     log::info!("🔄 Gitea OAuth callback received");
-    log::debug!("Code: {}...", &query.code.chars().take(10).collect::<String>());
-    log::debug!("State: {:?}", query.state);
 
-    let code = &query.code;
+    // Check if user denied authorization
+    if let Some(error) = &query.error {
+        log::warn!("❌ Gitea OAuth authorization denied: {}", error);
+
+        let original_message = query.error_description
+            .as_deref()
+            .unwrap_or("Authorization was denied");
+
+        let error_message = transform_error_message(original_message);
+
+        let redirect_url = format!(
+            "{}/oauth/callback?error={}",
+            config.base_url.replace(":3000", ":5173"),
+            urlencoding::encode(&error_message)
+        );
+
+        return Ok(HttpResponse::Found()
+            .append_header(("Location", redirect_url))
+            .finish());
+    }
+
+    // Get the authorization code
+    let code = query.code.as_ref().ok_or_else(|| {
+        log::error!("❌ Missing code parameter in OAuth callback");
+        actix_web::error::ErrorBadRequest("Missing authorization code")
+    })?;
+
+    log::debug!("Code: {}...", &code.chars().take(10).collect::<String>());
+    log::debug!("State: {:?}", query.state);
 
     // Validate state token
     let state_token = query.state.as_ref().ok_or_else(|| {
@@ -675,7 +746,7 @@ pub async fn gitea_callback(
     }
 
     // Redirect to frontend with success
-    let redirect_url = format!("{}/?oauth=success", config.base_url.replace(":3000", ":5173"));
+    let redirect_url = format!("{}/oauth/callback?oauth=success", config.base_url.replace(":3000", ":5173"));
     log::info!("🔄 Redirecting to: {}", redirect_url);
 
     Ok(HttpResponse::Found()
@@ -921,8 +992,10 @@ pub async fn gitlab_authorize(
 
 #[derive(Debug, Deserialize)]
 pub struct GitLabCallbackQuery {
-    pub code: String,
+    pub code: Option<String>,
     pub state: Option<String>,
+    pub error: Option<String>,
+    pub error_description: Option<String>,
 }
 
 /// GET /oauth/gitlab/callback
@@ -933,10 +1006,36 @@ pub async fn gitlab_callback(
     query: web::Query<GitLabCallbackQuery>,
 ) -> Result<impl Responder, actix_web::Error> {
     log::info!("🔄 GitLab OAuth callback received");
-    log::debug!("Code: {}...", &query.code.chars().take(10).collect::<String>());
-    log::debug!("State: {:?}", query.state);
 
-    let code = &query.code;
+    // Check if user denied authorization
+    if let Some(error) = &query.error {
+        log::warn!("❌ GitLab OAuth authorization denied: {}", error);
+
+        let original_message = query.error_description
+            .as_deref()
+            .unwrap_or("Authorization was denied");
+
+        let error_message = transform_error_message(original_message);
+
+        let redirect_url = format!(
+            "{}/oauth/callback?error={}",
+            config.base_url.replace(":3000", ":5173"),
+            urlencoding::encode(&error_message)
+        );
+
+        return Ok(HttpResponse::Found()
+            .append_header(("Location", redirect_url))
+            .finish());
+    }
+
+    // Get the authorization code
+    let code = query.code.as_ref().ok_or_else(|| {
+        log::error!("❌ Missing code parameter in OAuth callback");
+        actix_web::error::ErrorBadRequest("Missing authorization code")
+    })?;
+
+    log::debug!("Code: {}...", &code.chars().take(10).collect::<String>());
+    log::debug!("State: {:?}", query.state);
 
     // Validate state token
     let state_token = query.state.as_ref().ok_or_else(|| {
@@ -1098,7 +1197,7 @@ pub async fn gitlab_callback(
     }
 
     // Redirect to frontend with success
-    let redirect_url = format!("{}/?oauth=success", config.base_url.replace(":3000", ":5173"));
+    let redirect_url = format!("{}/oauth/callback?oauth=success", config.base_url.replace(":3000", ":5173"));
     log::info!("🎉 OAuth flow complete! Redirecting to: {}", redirect_url);
 
     Ok(HttpResponse::Found()

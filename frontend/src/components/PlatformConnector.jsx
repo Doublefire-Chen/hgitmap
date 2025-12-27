@@ -26,6 +26,7 @@ function PlatformConnector() {
   const [gitlabOAuthError, setGitlabOAuthError] = useState(null);
   const [gitlabInstances, setGitlabInstances] = useState([]);
   const [loadingGitlabInstances, setLoadingGitlabInstances] = useState(false);
+  const [activeAuthTab, setActiveAuthTab] = useState('oauth'); // 'oauth' or 'pat'
 
   useEffect(() => {
     loadPlatforms();
@@ -351,26 +352,83 @@ function PlatformConnector() {
         <h3>Connect Platform</h3>
 
         {!showPATForm && !showGiteaOAuthForm && !showGitlabOAuthForm ? (
-          <div className="connect-buttons">
-            <button className="btn btn-primary" onClick={handleConnectOAuth}>
-              <PlatformIcon platform="github" size={16} />
-              Connect GitHub with OAuth
-            </button>
-            <button className="btn btn-primary" onClick={handleShowGiteaOAuth}>
-              <PlatformIcon platform="gitea" size={16} />
-              Connect Gitea with OAuth
-            </button>
-            <button className="btn btn-primary" onClick={handleShowGitlabOAuth}>
-              <PlatformIcon platform="gitlab" size={16} />
-              Connect GitLab with OAuth
-            </button>
-            <button className="btn btn-secondary" onClick={() => {
-              setSelectedPlatform('github');
-              setShowPATForm(true);
-            }}>
-              Connect with Personal Access Token
-            </button>
-          </div>
+          <>
+            <div className="auth-tabs">
+              <button
+                className={`auth-tab ${activeAuthTab === 'oauth' ? 'active' : ''}`}
+                onClick={() => setActiveAuthTab('oauth')}
+              >
+                OAuth
+              </button>
+              <button
+                className={`auth-tab ${activeAuthTab === 'pat' ? 'active' : ''}`}
+                onClick={() => setActiveAuthTab('pat')}
+              >
+                Personal Access Token
+              </button>
+            </div>
+
+            <div className="connect-buttons">
+              {activeAuthTab === 'oauth' ? (
+                <>
+                  <button className="btn btn-platform btn-github" onClick={handleConnectOAuth}>
+                    <PlatformIcon platform="github" size={20} />
+                    <div className="btn-content">
+                      <span className="btn-platform-name">GitHub</span>
+                      <span className="btn-helper-text">OAuth</span>
+                    </div>
+                  </button>
+                  <button className="btn btn-platform btn-gitlab" onClick={handleShowGitlabOAuth}>
+                    <PlatformIcon platform="gitlab" size={20} />
+                    <div className="btn-content">
+                      <span className="btn-platform-name">GitLab</span>
+                      <span className="btn-helper-text">OAuth</span>
+                    </div>
+                  </button>
+                  <button className="btn btn-platform btn-gitea" onClick={handleShowGiteaOAuth}>
+                    <PlatformIcon platform="gitea" size={20} />
+                    <div className="btn-content">
+                      <span className="btn-platform-name">Gitea</span>
+                      <span className="btn-helper-text">OAuth</span>
+                    </div>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-platform btn-github" onClick={() => {
+                    setSelectedPlatform('github');
+                    setShowPATForm(true);
+                  }}>
+                    <PlatformIcon platform="github" size={20} />
+                    <div className="btn-content">
+                      <span className="btn-platform-name">GitHub</span>
+                      <span className="btn-helper-text">Personal Access Token</span>
+                    </div>
+                  </button>
+                  <button className="btn btn-platform btn-gitlab" onClick={() => {
+                    setSelectedPlatform('gitlab');
+                    setShowPATForm(true);
+                  }}>
+                    <PlatformIcon platform="gitlab" size={20} />
+                    <div className="btn-content">
+                      <span className="btn-platform-name">GitLab</span>
+                      <span className="btn-helper-text">Personal Access Token</span>
+                    </div>
+                  </button>
+                  <button className="btn btn-platform btn-gitea" onClick={() => {
+                    setSelectedPlatform('gitea');
+                    setShowPATForm(true);
+                  }}>
+                    <PlatformIcon platform="gitea" size={20} />
+                    <div className="btn-content">
+                      <span className="btn-platform-name">Gitea</span>
+                      <span className="btn-helper-text">Personal Access Token</span>
+                    </div>
+                  </button>
+                </>
+              )}
+            </div>
+          </>
         ) : showGitlabOAuthForm ? (
           <div className="gitlab-oauth-form">
             <h4>Connect GitLab with OAuth</h4>
@@ -513,20 +571,7 @@ function PlatformConnector() {
           </div>
         ) : (
           <form onSubmit={handleConnectPAT} className="pat-form">
-            <div className="platform-selector">
-              <label htmlFor="platform-select">Platform:</label>
-              <select
-                id="platform-select"
-                value={selectedPlatform}
-                onChange={(e) => setSelectedPlatform(e.target.value)}
-                disabled={patLoading}
-                className="platform-select"
-              >
-                <option value="github">GitHub</option>
-                <option value="gitea">Gitea</option>
-                <option value="gitlab">GitLab</option>
-              </select>
-            </div>
+            <h4>Connect {selectedPlatform.charAt(0).toUpperCase() + selectedPlatform.slice(1)} with Personal Access Token</h4>
 
             {(selectedPlatform === 'gitea' || selectedPlatform === 'gitlab') && (
               <div className="instance-url-input">

@@ -14,6 +14,47 @@ impl GitHubClient {
         Self
     }
 
+    /// Revoke a GitHub OAuth token
+    pub async fn revoke_token(
+        &self,
+        client_id: &str,
+        client_secret: &str,
+        access_token: &str,
+    ) -> Result<()> {
+        let client = create_http_client();
+
+        log::info!("🔒 Revoking GitHub OAuth token");
+
+        let response = client
+            .delete(&format!("https://api.github.com/applications/{}/token", client_id))
+            .basic_auth(client_id, Some(client_secret))
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28")
+            .header("User-Agent", "hgitmap/0.1.0")
+            .json(&json!({
+                "access_token": access_token
+            }))
+            .send()
+            .await?;
+
+        let status = response.status();
+
+        if status.is_success() {
+            // 204 No Content on success
+            log::info!("✅ GitHub token revoked successfully");
+            Ok(())
+        } else if status.as_u16() == 404 {
+            // 404 means token was already revoked or doesn't exist - this is OK
+            log::info!("✅ GitHub token was already revoked or doesn't exist");
+            Ok(())
+        } else {
+            let error_text = response.text().await.unwrap_or_default();
+            log::warn!("⚠️  Failed to revoke GitHub token: status {} - {}", status, error_text);
+            // Don't fail the disconnect if revocation fails - just log the warning
+            Ok(())
+        }
+    }
+
     /// Fetch user profile data from GitHub
     pub async fn fetch_user_profile(
         &self,

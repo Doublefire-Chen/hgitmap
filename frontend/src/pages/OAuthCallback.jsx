@@ -21,11 +21,13 @@ function OAuthCallback() {
         return;
       }
 
-      // Handle error from OAuth provider
+      // Handle error from OAuth provider or backend
       const errorParam = searchParams.get('error');
       if (errorParam) {
         setStatus('error');
-        setError(`OAuth error: ${errorParam}`);
+        // Decode the error message
+        const decodedError = decodeURIComponent(errorParam);
+        setError(decodedError);
         return;
       }
 
@@ -43,7 +45,7 @@ function OAuthCallback() {
         {status === 'processing' && (
           <div className="oauth-status">
             <div className="spinner"></div>
-            <h2>Connecting your GitHub account...</h2>
+            <h2>Connecting your account...</h2>
             <p>Please wait while we complete the connection.</p>
           </div>
         )}
@@ -52,7 +54,7 @@ function OAuthCallback() {
           <div className="oauth-status success">
             <div className="success-icon">✓</div>
             <h2>Successfully connected!</h2>
-            <p>Your GitHub account has been connected. Redirecting to your dashboard...</p>
+            <p>Your account has been connected. Redirecting to your dashboard...</p>
           </div>
         )}
 

@@ -49,6 +49,36 @@ impl GitLabClient {
         Self
     }
 
+    /// Revoke a GitLab OAuth token
+    pub async fn revoke_token(
+        &self,
+        instance_url: &str,
+        access_token: &str,
+    ) -> Result<()> {
+        let client = create_http_client();
+
+        log::info!("🔒 Revoking GitLab OAuth token for instance: {}", instance_url);
+
+        let revoke_url = format!("{}/oauth/revoke", instance_url);
+
+        let response = client
+            .post(&revoke_url)
+            .form(&[("token", access_token)])
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            log::info!("✅ GitLab token revoked successfully");
+            Ok(())
+        } else {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            log::warn!("⚠️  Failed to revoke GitLab token: status {} - {}", status, error_text);
+            // Don't fail the disconnect if revocation fails - just log the warning
+            Ok(())
+        }
+    }
+
     /// Fetch user profile data from GitLab
     pub async fn fetch_user_profile(
         &self,
@@ -86,8 +116,8 @@ impl GitLabClient {
         config: &PlatformConfig,
         user_id: i64,
         token: &str,
-        from: DateTime<Utc>,
-        to: DateTime<Utc>,
+        _from: DateTime<Utc>,
+        _to: DateTime<Utc>,
     ) -> Result<Vec<GitLabEvent>> {
         let client = create_http_client();
         let mut all_events = Vec::new();

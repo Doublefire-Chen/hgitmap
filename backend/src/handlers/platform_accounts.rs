@@ -302,6 +302,7 @@ pub async fn list_platforms(
 /// Disconnect a platform account
 pub async fn disconnect_platform(
     db: web::Data<DatabaseConnection>,
+    config: web::Data<Config>,
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     path: web::Path<String>,
 ) -> Result<impl Responder, actix_web::Error> {
@@ -326,6 +327,70 @@ pub async fn disconnect_platform(
     // Verify ownership
     if account.user_id != user_id {
         return Err(actix_web::error::ErrorForbidden("Not authorized"));
+    }
+
+    log::info!("🗑️  Disconnecting platform account: {}", account_id);
+
+    // Revoke the OAuth token on the platform before deleting
+    if let Some(encrypted_token) = &account.access_token {
+        log::info!("🔓 Decrypting access token for revocation");
+
+        match encryption::decrypt(encrypted_token, &config.encryption_key) {
+            Ok(access_token) => {
+                log::info!("🔒 Revoking token on platform: {:?}", account.platform_type);
+
+                // Revoke token based on platform type
+                let revoke_result = match account.platform_type {
+                    git_platform_account::GitPlatform::GitHub => {
+                        // Get OAuth app credentials for GitHub
+                        let oauth_app = crate::models::oauth_application::Entity::find()
+                            .filter(crate::models::oauth_application::Column::Platform.eq(account.platform_type.clone()))
+                            .filter(crate::models::oauth_application::Column::InstanceUrl.eq(""))
+                            .filter(crate::models::oauth_application::Column::IsEnabled.eq(true))
+                            .one(db.as_ref())
+                            .await
+                            .ok()
+                            .flatten();
+
+                        if let Some(app) = oauth_app {
+                            let client_secret = encryption::decrypt(&app.client_secret, &config.encryption_key)
+                                .unwrap_or_default();
+
+                            let github_client = GitHubClient::new();
+                            github_client.revoke_token(&app.client_id, &client_secret, &access_token).await
+                        } else {
+                            log::warn!("No GitHub OAuth app configured, skipping token revocation");
+                            Ok(())
+                        }
+                    },
+                    git_platform_account::GitPlatform::GitLab => {
+                        let instance_url = account.platform_url.as_deref().unwrap_or("https://gitlab.com");
+                        let gitlab_client = GitLabClient::new();
+                        gitlab_client.revoke_token(instance_url, &access_token).await
+                    },
+                    git_platform_account::GitPlatform::Gitea => {
+                        if let Some(instance_url) = &account.platform_url {
+                            let gitea_client = GiteaClient::new();
+                            gitea_client.revoke_token(instance_url, &access_token).await
+                        } else {
+                            log::warn!("No instance URL for Gitea account, skipping token revocation");
+                            Ok(())
+                        }
+                    },
+                };
+
+                if let Err(e) = revoke_result {
+                    log::warn!("⚠️  Token revocation failed (non-fatal): {}", e);
+                    // Continue with deletion even if revocation fails
+                }
+            },
+            Err(e) => {
+                log::warn!("⚠️  Failed to decrypt token for revocation: {}", e);
+                // Continue with deletion even if we can't decrypt the token
+            }
+        }
+    } else {
+        log::info!("No access token to revoke");
     }
 
     log::info!("🗑️  Deleting platform account and all related data for account ID: {}", account_id);

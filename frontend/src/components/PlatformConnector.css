@@ -145,32 +145,181 @@
   color: var(--text-primary);
 }
 
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.auth-tab {
+  background: transparent;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.auth-tab:hover {
+  color: var(--text-primary);
+}
+
+.auth-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
 .connect-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.btn-platform {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 1.25rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-align: center;
+  transition: all 0.2s;
+  border-radius: 6px;
 }
 
-.connect-buttons .btn-primary {
-  background: #ffffff !important;
-  color: var(--text-primary) !important;
-  border: 1px solid var(--border-color) !important;
+.btn-platform:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  background: var(--bg-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.connect-buttons .btn-primary:hover:not(:disabled) {
-  background: var(--bg-secondary) !important;
-  border-color: var(--accent-primary) !important;
+[data-theme="dark"] .btn-platform:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Dark mode support for connect buttons */
-[data-theme="dark"] .connect-buttons .btn-primary {
-  background: #1c1c1c !important;
+.btn-platform img {
+  flex-shrink: 0;
+}
+
+.btn-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-platform-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
+
+.btn-helper-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .pat-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.pat-form h4,
+.gitea-oauth-form h4,
+.gitlab-oauth-form h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.form-hint {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.input-hint {
+  color: var(--text-tertiary);
+  font-size: 0.8125rem;
+  margin: 0.25rem 0 0 0;
+  line-height: 1.4;
+}
+
+.instance-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.instance-selector label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.instance-select,
+.platform-select {
+  padding: 0.625rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.instance-select:hover:not(:disabled),
+.platform-select:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+}
+
+.instance-select:focus,
+.platform-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.instance-url-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.instance-url-input label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.instance-url {
+  padding: 0.625rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.instance-url:focus {
+  outline: none;
+  border-color: var(--accent-primary);
 }
 
 .pat-instructions {
@@ -303,7 +452,11 @@
     flex: 1;
   }
 
-  .connect-buttons button,
+  .connect-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-platform,
   .pat-form-actions button {
     width: 100%;
   }

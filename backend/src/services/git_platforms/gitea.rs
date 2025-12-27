@@ -21,6 +21,38 @@ impl GiteaClient {
         Self
     }
 
+    /// Revoke a Gitea OAuth token
+    pub async fn revoke_token(
+        &self,
+        instance_url: &str,
+        access_token: &str,
+    ) -> Result<()> {
+        let client = create_http_client();
+
+        log::info!("🔒 Revoking Gitea OAuth token for instance: {}", instance_url);
+
+        // Gitea uses the token to authenticate and delete itself
+        let revoke_url = format!("{}/api/v1/user/applications/oauth2/{}", instance_url, access_token);
+
+        let response = client
+            .delete(&revoke_url)
+            .header("Authorization", format!("token {}", access_token))
+            .send()
+            .await?;
+
+        if response.status().is_success() || response.status().as_u16() == 404 {
+            // 404 means token was already revoked or doesn't exist - this is OK
+            log::info!("✅ Gitea token revoked successfully");
+            Ok(())
+        } else {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            log::warn!("⚠️  Failed to revoke Gitea token: status {} - {}", status, error_text);
+            // Don't fail the disconnect if revocation fails - just log the warning
+            Ok(())
+        }
+    }
+
     /// Fetch user profile data from Gitea
     pub async fn fetch_user_profile(
         &self,
