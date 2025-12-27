@@ -43,6 +43,8 @@ pub struct PlatformAccountResponse {
     // Sync preferences
     pub sync_profile: bool,
     pub sync_contributions: bool, // When enabled, syncs both contributions and activities
+    // Authentication method
+    pub auth_type: String, // "oauth" or "personal_access_token"
 }
 
 #[derive(Debug, Serialize)]
@@ -174,6 +176,7 @@ pub async fn connect_platform(
         let mut account: git_platform_account::ActiveModel = account.into();
         account.access_token = Set(Some(encrypted_token));
         account.is_active = Set(true);
+        account.auth_type = Set(git_platform_account::AuthType::PersonalAccessToken);
         account.updated_at = Set(chrono::Utc::now());
 
         account.update(db.as_ref()).await.map_err(|e| {
@@ -204,6 +207,7 @@ pub async fn connect_platform(
             following_count: Set(None),
             sync_profile: Set(true),
             sync_contributions: Set(true),
+            auth_type: Set(git_platform_account::AuthType::PersonalAccessToken),
         };
 
         git_platform_account::Entity::insert(new_account)
@@ -219,6 +223,11 @@ pub async fn connect_platform(
         git_platform_account::GitPlatform::GitHub => "github",
         git_platform_account::GitPlatform::GitLab => "gitlab",
         git_platform_account::GitPlatform::Gitea => "gitea",
+    };
+
+    let auth_type_str = match account.auth_type {
+        git_platform_account::AuthType::OAuth => "oauth",
+        git_platform_account::AuthType::PersonalAccessToken => "personal_access_token",
     };
 
     Ok(HttpResponse::Ok().json(PlatformAccountResponse {
@@ -240,6 +249,7 @@ pub async fn connect_platform(
         following_count: account.following_count,
         sync_profile: account.sync_profile,
         sync_contributions: account.sync_contributions,
+        auth_type: auth_type_str.to_string(),
     }))
 }
 
@@ -272,6 +282,11 @@ pub async fn list_platforms(
                 git_platform_account::GitPlatform::Gitea => "gitea",
             };
 
+            let auth_type_str = match account.auth_type {
+                git_platform_account::AuthType::OAuth => "oauth",
+                git_platform_account::AuthType::PersonalAccessToken => "personal_access_token",
+            };
+
             PlatformAccountResponse {
                 id: account.id.to_string(),
                 platform: platform_str.to_string(),
@@ -291,6 +306,7 @@ pub async fn list_platforms(
                 following_count: account.following_count,
                 sync_profile: account.sync_profile,
                 sync_contributions: account.sync_contributions,
+                auth_type: auth_type_str.to_string(),
             }
         })
         .collect();
@@ -464,6 +480,11 @@ pub async fn update_sync_preferences(
         git_platform_account::GitPlatform::Gitea => "gitea",
     };
 
+    let auth_type_str = match updated_account.auth_type {
+        git_platform_account::AuthType::OAuth => "oauth",
+        git_platform_account::AuthType::PersonalAccessToken => "personal_access_token",
+    };
+
     Ok(HttpResponse::Ok().json(PlatformAccountResponse {
         id: updated_account.id.to_string(),
         platform: platform_str.to_string(),
@@ -483,6 +504,7 @@ pub async fn update_sync_preferences(
         following_count: updated_account.following_count,
         sync_profile: updated_account.sync_profile,
         sync_contributions: updated_account.sync_contributions,
+        auth_type: auth_type_str.to_string(),
     }))
 }
 

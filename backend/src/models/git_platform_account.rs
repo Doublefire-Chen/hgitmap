@@ -12,6 +12,15 @@ pub enum GitPlatform {
     GitLab,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "auth_type")]
+pub enum AuthType {
+    #[sea_orm(string_value = "oauth")]
+    OAuth,
+    #[sea_orm(string_value = "personal_access_token")]
+    PersonalAccessToken,
+}
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "git_platform_accounts")]
 pub struct Model {
@@ -39,6 +48,8 @@ pub struct Model {
     // Sync preferences
     pub sync_profile: bool,
     pub sync_contributions: bool, // When enabled, syncs both contributions and activities
+    // Authentication method
+    pub auth_type: AuthType,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

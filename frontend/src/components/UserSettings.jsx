@@ -12,6 +12,7 @@ export default function UserSettings() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showRequirementWarning, setShowRequirementWarning] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -47,10 +48,33 @@ export default function UserSettings() {
   };
 
   const handleChange = (field, value) => {
+    // When disabling show_private_contributions, also disable hide_private_repo_names and clear warning
+    if (field === 'show_private_contributions' && value === false) {
+      setShowRequirementWarning(false);
+      setSettings((prev) => ({
+        ...prev,
+        show_private_contributions: false,
+        hide_private_repo_names: false,
+      }));
+      return;
+    }
+
+    // When enabling show_private_contributions, clear warning
+    if (field === 'show_private_contributions' && value === true) {
+      setShowRequirementWarning(false);
+    }
+
     setSettings((prev) => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleDisabledToggleClick = () => {
+    // Show warning when user tries to click the disabled toggle
+    if (!settings.show_private_contributions) {
+      setShowRequirementWarning(true);
+    }
   };
 
   if (loading) {
@@ -118,9 +142,17 @@ export default function UserSettings() {
                 <p className="setting-description">
                   Show contribution counts from private repos but hide repository names
                 </p>
+                {showRequirementWarning && (
+                  <p className="setting-requirement">
+                    ⚠️ Please enable "Show Private Contributions" first to use this option
+                  </p>
+                )}
               </div>
               <div className="setting-control">
-                <label className="toggle-switch">
+                <label
+                  className="toggle-switch"
+                  onClick={handleDisabledToggleClick}
+                >
                   <input
                     type="checkbox"
                     checked={settings.hide_private_repo_names}

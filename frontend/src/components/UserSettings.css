@@ -64,6 +64,35 @@
   line-height: 1.4;
 }
 
+.setting-requirement {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.875rem;
+  color: #f59e0b;
+  line-height: 1.4;
+  padding: 0.5rem 0.75rem;
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-theme="dark"] .setting-requirement {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.15);
+  border-left-color: #fbbf24;
+}
+
 .setting-control {
   display: flex;
   align-items: center;
@@ -118,7 +147,11 @@
 
 .toggle-switch input:disabled + .toggle-slider {
   opacity: 0.5;
-  cursor: not-allowed;
+  cursor: pointer; /* Keep cursor as pointer to indicate it's clickable for info */
+}
+
+.toggle-switch input:disabled {
+  cursor: pointer;
 }
 
 .settings-actions {

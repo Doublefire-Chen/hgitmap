@@ -324,6 +324,7 @@ pub async fn github_callback(
         account.access_token = Set(Some(encrypted_token));
         account.refresh_token = Set(None);
         account.is_active = Set(true);
+        account.auth_type = Set(git_platform_account::AuthType::OAuth);
         account.updated_at = Set(chrono::Utc::now());
 
         account.update(db.as_ref()).await.map_err(|e| {
@@ -356,6 +357,7 @@ pub async fn github_callback(
             following_count: Set(None),
             sync_profile: Set(true),
             sync_contributions: Set(true),
+            auth_type: Set(git_platform_account::AuthType::OAuth),
         };
 
         git_platform_account::Entity::insert(new_account)
@@ -701,6 +703,7 @@ pub async fn gitea_callback(
         account.access_token = Set(Some(encrypted_token));
         account.refresh_token = Set(None);
         account.is_active = Set(true);
+        account.auth_type = Set(git_platform_account::AuthType::OAuth);
         account.updated_at = Set(chrono::Utc::now());
 
         account.update(db.as_ref()).await.map_err(|e| {
@@ -733,6 +736,7 @@ pub async fn gitea_callback(
             following_count: Set(None),
             sync_profile: Set(true),
             sync_contributions: Set(true),
+            auth_type: Set(git_platform_account::AuthType::OAuth),
         };
 
         git_platform_account::Entity::insert(new_account)
@@ -1152,6 +1156,7 @@ pub async fn gitlab_callback(
         account.access_token = Set(Some(encrypted_token));
         account.refresh_token = Set(token_result.refresh_token.map(|_| "".to_string())); // GitLab refresh tokens need separate handling
         account.is_active = Set(true);
+        account.auth_type = Set(git_platform_account::AuthType::OAuth);
         account.updated_at = Set(chrono::Utc::now());
 
         account.update(db.as_ref()).await.map_err(|e| {
@@ -1184,6 +1189,7 @@ pub async fn gitlab_callback(
             following_count: Set(None),
             sync_profile: Set(true),
             sync_contributions: Set(true),
+            auth_type: Set(git_platform_account::AuthType::OAuth),
         };
 
         git_platform_account::Entity::insert(new_account)

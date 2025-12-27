@@ -277,70 +277,77 @@ function PlatformConnector() {
 
       {/* Connected Platforms List */}
       {platforms.length > 0 && (
-        <div className="platforms-list">
+        <div className="connected-platforms-grid">
           {platforms.map((platform) => (
             <div key={platform.id} className="platform-card">
-              <div className="platform-info">
-                <div className="platform-details">
-                  <h3>{platform.platform_username}</h3>
-                  <span className="platform-name">
-                    <PlatformIcon platform={platform.platform} size={16} />
-                    <span>{platform.platform.charAt(0).toUpperCase() + platform.platform.slice(1)}</span>
-                  </span>
-                  {platform.last_synced_at && (
-                    <span className="last-sync">
-                      Last synced: {new Date(platform.last_synced_at).toLocaleString()}
-                    </span>
-                  )}
+              <div className="platform-card-header">
+                <div className="platform-identity">
+                  <div className="platform-icon-wrapper">
+                    <PlatformIcon platform={platform.platform} size={20} />
+                  </div>
+                  <div className="platform-info-text">
+                    <div className="platform-username-row">
+                      <h3>{platform.platform_username}</h3>
+                      <span className={`auth-type-badge ${platform.auth_type === 'oauth' ? 'oauth' : 'pat'}`}>
+                        {platform.auth_type === 'oauth' ? 'OAuth' : 'PAT'}
+                      </span>
+                    </div>
+                    {platform.last_synced_at && (
+                      <span className="last-sync-time">
+                        Last synced: {new Date(platform.last_synced_at).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-
-              <div className="platform-sync-section">
-                <div className="sync-row">
-                  <label className="sync-label">Profile:</label>
-                  <button
-                    className="btn btn-secondary btn-sm profile-sync-btn"
-                    onClick={() => handleSyncProfile(platform.id)}
-                    disabled={syncingProfileId === platform.id}
-                    title="Refresh profile information (avatar, bio, location, company)"
-                  >
-                    {syncingProfileId === platform.id ? 'Syncing...' : 'Sync Profile'}
-                  </button>
-                </div>
-
-                <div className="sync-row">
-                  <label className="sync-label" title="Syncs heatmap contributions and activity timeline together">
-                    Heatmap & Activities:
-                  </label>
-                  <select
-                    className="sync-year-selector"
-                    value={selectedSyncYear[platform.id] || 'current'}
-                    onChange={(e) => setSelectedSyncYear({ ...selectedSyncYear, [platform.id]: e.target.value })}
-                    disabled={syncingPlatformId === platform.id}
-                  >
-                    <option value="current">Current year ({new Date().getFullYear()})</option>
-                    {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => {
-                      const year = new Date().getFullYear() - 1 - i;
-                      return <option key={year} value={year}>{year}</option>;
-                    })}
-                    <option value="all">All years (2020-{new Date().getFullYear()})</option>
-                  </select>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleSync(platform.id)}
-                    disabled={syncingPlatformId === platform.id}
-                    title="Sync both heatmap contributions and activity timeline"
-                  >
-                    {syncingPlatformId === platform.id ? 'Syncing...' : 'Sync'}
-                  </button>
-                </div>
-
                 <button
                   className="btn btn-danger btn-sm remove-btn"
                   onClick={() => handleDisconnect(platform.id)}
                 >
                   Remove
                 </button>
+              </div>
+
+              <div className="platform-card-body">
+                <div className="sync-row-compact">
+                  <label className="sync-row-label">Profile Data</label>
+                  <div className="sync-row-controls">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleSyncProfile(platform.id)}
+                      disabled={syncingProfileId === platform.id}
+                      title="Refresh profile information (avatar, bio, location, company)"
+                    >
+                      {syncingProfileId === platform.id ? 'Syncing...' : 'Sync'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="sync-row-compact vertical">
+                  <label className="sync-row-label">Contributions & Activities</label>
+                  <div className="sync-row-controls">
+                    <select
+                      className="sync-year-selector"
+                      value={selectedSyncYear[platform.id] || 'current'}
+                      onChange={(e) => setSelectedSyncYear({ ...selectedSyncYear, [platform.id]: e.target.value })}
+                      disabled={syncingPlatformId === platform.id}
+                    >
+                      <option value="current">Current year ({new Date().getFullYear()})</option>
+                      {Array.from({ length: new Date().getFullYear() - 2019 }, (_, i) => {
+                        const year = new Date().getFullYear() - 1 - i;
+                        return <option key={year} value={year}>{year}</option>;
+                      })}
+                      <option value="all">All years (2020-{new Date().getFullYear()})</option>
+                    </select>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleSync(platform.id)}
+                      disabled={syncingPlatformId === platform.id}
+                      title="Sync both heatmap contributions and activity timeline"
+                    >
+                      {syncingPlatformId === platform.id ? 'Syncing...' : 'Sync'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}

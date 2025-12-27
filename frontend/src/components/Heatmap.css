@@ -75,7 +75,56 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 100px;
+  min-width: 140px;
+}
+
+.platform-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.platform-filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.platform-filter-select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.platform-filter-select:hover {
+  border-color: var(--accent-primary);
+}
+
+.platform-filter-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+}
+
+[data-theme="dark"] .platform-filter-select:focus {
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+}
+
+.year-filter-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 8px 0;
 }
 
 .year-item {
@@ -329,6 +378,16 @@
     flex-wrap: wrap;
     min-width: auto;
     order: -1; /* Show years above the heatmap on mobile */
+  }
+
+  .platform-filter-section {
+    width: 100%;
+    order: -2; /* Show platform filter above years on mobile */
+  }
+
+  .year-filter-divider {
+    width: 100%;
+    margin: 4px 0;
   }
 
   .heatmap-stats {

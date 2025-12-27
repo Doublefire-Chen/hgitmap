@@ -18,6 +18,9 @@ CREATE TABLE users (
 -- Git platform type enum
 CREATE TYPE git_platform AS ENUM ('github', 'gitea', 'gitlab');
 
+-- Authentication type enum
+CREATE TYPE auth_type AS ENUM ('oauth', 'personal_access_token');
+
 -- Git platform accounts table
 CREATE TABLE git_platform_accounts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -43,6 +46,8 @@ CREATE TABLE git_platform_accounts (
     -- Sync preferences (per-platform control)
     sync_profile BOOLEAN DEFAULT true, -- Enable/disable syncing profile data (avatar, bio, etc.)
     sync_contributions BOOLEAN DEFAULT true, -- Enable/disable syncing contributions and activities together
+    -- Authentication method
+    auth_type auth_type NOT NULL DEFAULT 'oauth',
     UNIQUE(user_id, platform_type, platform_username, platform_url)
 );
 
