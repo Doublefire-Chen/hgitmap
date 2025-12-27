@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import apiClient from '../api/client';
 import PlatformIcon from './PlatformIcon';
+import { FiEdit, FiTrash2 } from 'react-icons/fi';
 import './OAuthAppsManager.css';
 
 export default function OAuthAppsManager() {
@@ -182,46 +183,48 @@ export default function OAuthAppsManager() {
                       <div className="app-badges">
                         {app.is_default && <span className="badge badge-default">Default</span>}
                         {!app.is_enabled && <span className="badge badge-disabled">Disabled</span>}
+                        <label className="toggle-switch" title={app.is_enabled ? 'Enabled - Click to disable' : 'Disabled - Click to enable'}>
+                          <input
+                            type="checkbox"
+                            checked={app.is_enabled}
+                            onChange={() => handleToggleEnabled(app)}
+                            aria-label={app.is_enabled ? 'Disable OAuth app' : 'Enable OAuth app'}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="app-details">
-                    {app.instance_url && (
-                      <div className="detail-row">
-                        <span className="detail-label">Instance URL:</span>
-                        <span className="detail-value">{app.instance_url}</span>
-                      </div>
-                    )}
-                    <div className="detail-row">
-                      <span className="detail-label">Client ID:</span>
-                      <span className="detail-value code">{app.client_id}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Client Secret:</span>
-                      <span className="detail-value code">{app.client_secret_masked}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="detail-label">Created:</span>
-                      <span className="detail-value">
-                        {new Date(app.created_at).toLocaleDateString()}
+                    <div className="instance-url-display">
+                      <span className="instance-url-text">
+                        {app.instance_url || (app.platform === 'github' ? 'https://github.com' : `https://${app.platform}.com`)}
                       </span>
                     </div>
                   </div>
 
                   <div className="app-actions">
-                    <button
-                      onClick={() => handleToggleEnabled(app)}
-                      className={`btn btn-sm ${app.is_enabled ? 'btn-warning' : 'btn-success'}`}
+                    <div
+                      onClick={() => handleEdit(app)}
+                      className="btn-icon btn-icon-secondary"
+                      title="Edit"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleEdit(app)}
+                      aria-label="Edit OAuth app"
                     >
-                      {app.is_enabled ? 'Disable' : 'Enable'}
-                    </button>
-                    <button onClick={() => handleEdit(app)} className="btn btn-sm btn-secondary">
-                      Edit
-                    </button>
-                    <button onClick={() => handleDelete(app.id)} className="btn btn-sm btn-danger">
-                      Delete
-                    </button>
+                      <FiEdit size={20} />
+                    </div>
+
+                    <div
+                      onClick={() => handleDelete(app.id)}
+                      className="btn-icon btn-icon-danger"
+                      title="Delete"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleDelete(app.id)}
+                      aria-label="Delete OAuth app"
+                    >
+                      <FiTrash2 size={20} />
+                    </div>
                   </div>
                 </div>
               ))}
