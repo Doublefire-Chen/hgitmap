@@ -181,7 +181,7 @@ function ThemeEditor() {
         await apiClient.createTheme(submitData);
       }
 
-      navigate('/heatmap/themes');
+      navigate('/settings/themes');
     } catch (err) {
       setError(err.message);
       setSaving(false);

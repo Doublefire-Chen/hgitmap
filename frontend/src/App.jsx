@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
@@ -15,6 +15,12 @@ import HeatmapThemes from './pages/HeatmapThemes';
 import ThemeEditor from './pages/ThemeEditor';
 import GenerationSettings from './pages/GenerationSettings';
 import SyncSettings from './pages/SyncSettings';
+
+// Helper component for redirecting with parameters
+function ThemeEditRedirect() {
+  const { slug } = useParams();
+  return <Navigate to={`/settings/themes/${slug}/edit`} replace />;
+}
 
 function App() {
   return (
@@ -55,7 +61,7 @@ function App() {
             <Route path="/admin/oauth-apps" element={<Navigate to="/settings/platforms" replace />} />
             <Route path="/heatmap/themes" element={<Navigate to="/settings/themes" replace />} />
             <Route path="/heatmap/themes/new" element={<Navigate to="/settings/themes/new" replace />} />
-            <Route path="/heatmap/themes/:slug/edit" element={<Navigate to="/settings/themes/:slug/edit" replace />} />
+            <Route path="/heatmap/themes/:slug/edit" element={<ThemeEditRedirect />} />
             <Route path="/heatmap/settings" element={<Navigate to="/settings/generation" replace />} />
             <Route path="/sync/settings" element={<Navigate to="/settings/sync" replace />} />
             <Route

@@ -116,13 +116,13 @@ function HeatmapThemes() {
         <div className="header-actions">
           <button
             className="btn-secondary"
-            onClick={() => navigate('/heatmap/settings')}
+            onClick={() => navigate('/settings/generation')}
           >
             Generation Settings
           </button>
           <button
             className="btn-primary"
-            onClick={() => navigate('/heatmap/themes/new')}
+            onClick={() => navigate('/settings/themes/new')}
           >
             + New Theme
           </button>
@@ -136,7 +136,7 @@ function HeatmapThemes() {
           <p>No themes found. Create your first heatmap theme!</p>
           <button
             className="btn-primary"
-            onClick={() => navigate('/heatmap/themes/new')}
+            onClick={() => navigate('/settings/themes/new')}
           >
             Create Theme
           </button>
@@ -198,7 +198,7 @@ function HeatmapThemes() {
               <div className="theme-actions">
                 <button
                   className="btn-icon"
-                  onClick={() => navigate(`/heatmap/themes/${theme.slug}/edit`)}
+                  onClick={() => navigate(`/settings/themes/${theme.slug}/edit`)}
                   title="Edit theme"
                 >
                   <FiEdit />

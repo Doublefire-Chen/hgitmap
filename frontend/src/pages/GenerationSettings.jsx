@@ -111,7 +111,7 @@ function GenerationSettings() {
     <div className="generation-settings-container">
       <div className="settings-header">
         <h1>Generation Settings</h1>
-        <button className="btn-secondary" onClick={() => navigate('/heatmap/themes')}>
+        <button className="btn-secondary" onClick={() => navigate('/settings/themes')}>
           Back to Themes
         </button>
       </div>
