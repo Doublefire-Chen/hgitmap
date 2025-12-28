@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import apiClient from '../api/client';
 import PlatformIcon from './PlatformIcon';
-import { FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiArrowLeft } from 'react-icons/fi';
 import './OAuthAppsManager.css';
 
 export default function OAuthAppsManager() {
@@ -74,16 +74,7 @@ export default function OAuthAppsManager() {
       }
 
       // Reset form and reload apps
-      setShowForm(false);
-      setEditingApp(null);
-      setFormData({
-        platform: 'github',
-        instanceName: '',
-        instanceUrl: '',
-        clientId: '',
-        clientSecret: '',
-        isDefault: true,
-      });
+      cancelForm();
       loadApps();
     } catch (err) {
       showError(err.message || 'Failed to save OAuth app');
@@ -153,15 +144,17 @@ export default function OAuthAppsManager() {
   return (
     <div className="oauth-apps-manager">
       <div className="oauth-apps-content">
-        <div className="apps-list-section">
-          <div className="section-header">
-            <h2>Configured OAuth Applications</h2>
-            {!showForm && (
-              <button onClick={() => setShowForm(true)} className="btn btn-primary">
+        {!showForm ? (
+          <div className="apps-list-section">
+            <div className="section-header">
+              <h2>Configured OAuth Applications</h2>
+              <button
+                onClick={() => setShowForm(true)}
+                className="btn btn-primary"
+              >
                 + Add OAuth App
               </button>
-            )}
-          </div>
+            </div>
 
           {apps.length === 0 ? (
             <div className="empty-state">
@@ -232,10 +225,15 @@ export default function OAuthAppsManager() {
             </div>
           )}
         </div>
-
-        {showForm && (
+        ) : (
           <div className="form-section">
-            <h2>{editingApp ? 'Edit OAuth App' : 'Add OAuth App'}</h2>
+            <div className="form-header">
+              <button onClick={cancelForm} className="btn-back">
+                <FiArrowLeft size={20} />
+                <span>Back to OAuth Apps</span>
+              </button>
+              <h2>{editingApp ? 'Edit OAuth App' : 'Add OAuth App'}</h2>
+            </div>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label htmlFor="platform">Platform</label>

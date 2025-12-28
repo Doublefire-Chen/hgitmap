@@ -406,6 +406,35 @@
   border: 1px solid var(--border-color);
 }
 
+.form-header {
+  margin-bottom: 1.5rem;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: var(--radius-sm);
+}
+
+.btn-back:hover {
+  background: rgba(9, 105, 218, 0.1);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-back:hover {
+  background: rgba(88, 166, 255, 0.15);
+}
+
 .form-section h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;

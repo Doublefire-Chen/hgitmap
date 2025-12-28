@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import PlatformConnector from '../components/PlatformConnector';
 import OAuthAppsManager from '../components/OAuthAppsManager';
@@ -6,7 +7,22 @@ import './PlatformManagement.css';
 
 export default function PlatformManagement() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('platforms');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'oauth-apps' && user?.is_admin) {
+      setActiveTab('oauth-apps');
+    } else {
+      setActiveTab('platforms');
+    }
+  }, [searchParams, user]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   return (
     <div className="platform-management">
@@ -21,13 +37,13 @@ export default function PlatformManagement() {
         <div className="tabs">
           <button
             className={`tab ${activeTab === 'platforms' ? 'active' : ''}`}
-            onClick={() => setActiveTab('platforms')}
+            onClick={() => handleTabChange('platforms')}
           >
             My Platforms
           </button>
           <button
             className={`tab ${activeTab === 'oauth-apps' ? 'active' : ''}`}
-            onClick={() => setActiveTab('oauth-apps')}
+            onClick={() => handleTabChange('oauth-apps')}
           >
             OAuth Apps
             <span className="admin-badge">Admin</span>
