@@ -194,36 +194,37 @@ export default function OAuthAppsManager() {
                         </label>
                       </div>
                     </div>
-                    <div className="instance-url-display">
-                      <span className="instance-url-text">
-                        {app.instance_url || (app.platform === 'github' ? 'https://github.com' : `https://${app.platform}.com`)}
-                      </span>
-                    </div>
-                  </div>
+                    <div className="url-actions-row">
+                      <div className="instance-url-display">
+                        <span className="instance-url-text">
+                          {app.instance_url || (app.platform === 'github' ? 'https://github.com' : `https://${app.platform}.com`)}
+                        </span>
+                      </div>
+                      <div className="app-actions">
+                        <div
+                          onClick={() => handleEdit(app)}
+                          className="btn-icon btn-icon-secondary"
+                          title="Edit"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && handleEdit(app)}
+                          aria-label="Edit OAuth app"
+                        >
+                          <FiEdit size={18} />
+                        </div>
 
-                  <div className="app-actions">
-                    <div
-                      onClick={() => handleEdit(app)}
-                      className="btn-icon btn-icon-secondary"
-                      title="Edit"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleEdit(app)}
-                      aria-label="Edit OAuth app"
-                    >
-                      <FiEdit size={20} />
-                    </div>
-
-                    <div
-                      onClick={() => handleDelete(app.id)}
-                      className="btn-icon btn-icon-danger"
-                      title="Delete"
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && handleDelete(app.id)}
-                      aria-label="Delete OAuth app"
-                    >
-                      <FiTrash2 size={20} />
+                        <div
+                          onClick={() => handleDelete(app.id)}
+                          className="btn-icon btn-icon-danger"
+                          title="Delete"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => e.key === 'Enter' && handleDelete(app.id)}
+                          aria-label="Delete OAuth app"
+                        >
+                          <FiTrash2 size={18} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
