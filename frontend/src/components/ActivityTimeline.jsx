@@ -4,7 +4,7 @@ import apiClient from '../api/client';
 import ActivityIcons from './ActivityIcons';
 import './ActivityTimeline.css';
 
-function ActivityTimeline({ platformFilter = 'all' }) {
+function ActivityTimeline({ platformFilter = 'all', username = null, isPublic = false }) {
   const { user } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,12 @@ function ActivityTimeline({ platformFilter = 'all' }) {
 
       // Pass platform filter to API (null if 'all')
       const platform = platformFilter !== 'all' ? platformFilter : null;
-      const data = await apiClient.getActivities(null, null, limit, newOffset, platform);
+
+      // Use public or authenticated API based on isPublic flag
+      const data = isPublic
+        ? await apiClient.getUserActivities(username, null, null, limit, newOffset, platform)
+        : await apiClient.getActivities(null, null, limit, newOffset, platform);
+
       console.log('📦 [ActivityTimeline] Received activity data:', data);
       console.log('📦 [ActivityTimeline] Activities count:', data.activities?.length, 'has_more:', data.has_more);
 
@@ -51,7 +56,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
       setLoading(false);
       console.log('🏁 [ActivityTimeline] Loading finished, loading state set to false');
     }
-  }, [limit, platformFilter]);
+  }, [limit, platformFilter, isPublic, username]);
 
   useEffect(() => {
     console.log('🔄 [ActivityTimeline] useEffect triggered - resetting state');
@@ -68,7 +73,9 @@ function ActivityTimeline({ platformFilter = 'all' }) {
     // Fetch platforms to get platform usernames
     const fetchPlatforms = async () => {
       try {
-        const platformsData = await apiClient.getPlatforms();
+        const platformsData = isPublic
+          ? await apiClient.getUserPlatforms(username)
+          : await apiClient.getPlatforms();
         setPlatforms(platformsData);
         console.log('👥 [ActivityTimeline] Fetched platforms:', platformsData.length);
       } catch (err) {
@@ -77,7 +84,7 @@ function ActivityTimeline({ platformFilter = 'all' }) {
     };
 
     fetchPlatforms();
-  }, [loadActivities]);
+  }, [loadActivities, isPublic, username]);
 
   const loadMore = () => {
     if (hasMore && !loading) {

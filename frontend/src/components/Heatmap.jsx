@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../api/client';
 import './Heatmap.css';
 
-function Heatmap({ platformFilter = 'all', setPlatformFilter }) {
+function Heatmap({ platformFilter = 'all', setPlatformFilter, username = null, isPublic = false }) {
   const [contributions, setContributions] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,18 +11,20 @@ function Heatmap({ platformFilter = 'all', setPlatformFilter }) {
   const [year, setYear] = useState(new Date().getFullYear());
   const [platforms, setPlatforms] = useState([]);
 
-  // Load available platforms on mount
+  // Load available platforms on mount (only for authenticated users viewing their own profile)
   useEffect(() => {
-    const loadPlatforms = async () => {
-      try {
-        const platformList = await apiClient.listPlatforms();
-        setPlatforms(platformList);
-      } catch (err) {
-        console.error('Failed to load platforms:', err);
-      }
-    };
-    loadPlatforms();
-  }, []);
+    if (!isPublic) {
+      const loadPlatforms = async () => {
+        try {
+          const platformList = await apiClient.listPlatforms();
+          setPlatforms(platformList);
+        } catch (err) {
+          console.error('Failed to load platforms:', err);
+        }
+      };
+      loadPlatforms();
+    }
+  }, [isPublic]);
 
   const loadData = useCallback(async () => {
     try {
@@ -68,9 +70,14 @@ function Heatmap({ platformFilter = 'all', setPlatformFilter }) {
         console.log(`📅 [loadData] Year mode: ${fromDate} to ${toDate} (year ${year})`);
       }
 
+      // Use public or authenticated API based on isPublic flag
       const [contributionsData, statsData] = await Promise.all([
-        apiClient.getContributions(fromDate, toDate, platformFilter !== 'all' ? platformFilter : null),
-        apiClient.getContributionStats(),
+        isPublic
+          ? apiClient.getUserContributions(username, fromDate, toDate, platformFilter !== 'all' ? platformFilter : null)
+          : apiClient.getContributions(fromDate, toDate, platformFilter !== 'all' ? platformFilter : null),
+        isPublic
+          ? apiClient.getUserStats(username)
+          : apiClient.getContributionStats(),
       ]);
 
       console.log(`📊 [loadData] Received ${contributionsData.contributions?.length || 0} contribution days`);
@@ -84,7 +91,7 @@ function Heatmap({ platformFilter = 'all', setPlatformFilter }) {
     } finally {
       setLoading(false);
     }
-  }, [viewMode, year, platformFilter]);
+  }, [viewMode, year, platformFilter, username, isPublic]);
 
   useEffect(() => {
     loadData();

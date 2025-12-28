@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import apiClient from '../api/client';
 import './SyncSettings.css';
 
 function SyncSettings() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -122,14 +124,14 @@ function SyncSettings() {
     <div className="sync-settings-container">
       <div className="settings-header">
         <div className="breadcrumb">
-          <Link to="/" className="breadcrumb-link">Dashboard</Link>
+          <Link to={user ? `/${user.username}` : '/'} className="breadcrumb-link">Dashboard</Link>
           <span className="breadcrumb-separator">/</span>
           <span className="breadcrumb-current">Scheduled Sync Settings</span>
         </div>
         <h1>Scheduled Sync Settings</h1>
         <p className="subtitle">Configure automatic background syncing of your git platform data</p>
         <p className="hint-text">
-          💡 For manual syncing, go to <Link to="/" className="inline-link">Dashboard → Platforms</Link>
+          💡 For manual syncing, go to <Link to={user ? `/${user.username}` : '/'} className="inline-link">Dashboard → Platforms</Link>
         </p>
       </div>
 
@@ -308,7 +310,7 @@ function SyncSettings() {
           >
             {saving ? 'Saving...' : 'Save Settings'}
           </button>
-          <Link to="/" className="btn-secondary">
+          <Link to={user ? `/${user.username}` : '/'} className="btn-secondary">
             Back to Dashboard
           </Link>
         </div>

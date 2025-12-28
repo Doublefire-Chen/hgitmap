@@ -31,8 +31,8 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register(username, password);
-      navigate('/');
+      const data = await register(username, password);
+      navigate(`/${data.username}`);
     } catch (err) {
       setError(err.message);
     } finally {

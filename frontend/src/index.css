@@ -48,6 +48,22 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+
+  /* Simplified color aliases for easier usage */
+  --color-bg: var(--bg-secondary);
+  --color-surface: var(--bg-primary);
+  --color-text: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border-color);
+  --color-primary: var(--accent-primary);
+  --color-primary-bg: var(--accent-muted);
+
+  /* Heatmap contribution levels - GitHub green palette */
+  --color-level-0: #ebedf0;
+  --color-level-1: #9be9a8;
+  --color-level-2: #40c463;
+  --color-level-3: #30a14e;
+  --color-level-4: #216e39;
 }
 
 [data-theme='dark'] {
@@ -100,6 +116,22 @@
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
+
+  /* Simplified color aliases for easier usage */
+  --color-bg: var(--bg-secondary);
+  --color-surface: var(--bg-primary);
+  --color-text: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border-color);
+  --color-primary: var(--accent-primary);
+  --color-primary-bg: var(--accent-muted);
+
+  /* Heatmap contribution levels - GitHub green palette (dark theme) */
+  --color-level-0: #161b22;
+  --color-level-1: #0e4429;
+  --color-level-2: #006d32;
+  --color-level-3: #26a641;
+  --color-level-4: #39d353;
 }
 
 * {

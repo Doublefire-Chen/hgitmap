@@ -138,6 +138,14 @@ async fn main() -> std::io::Result<()> {
                     .route("", web::get().to(handlers::contributions::get_contributions))
                     .route("/stats", web::get().to(handlers::contributions::get_stats))
             )
+            // Public user profile endpoints (no authentication required)
+            .service(
+                web::scope("/users")
+                    .route("/{username}/contributions", web::get().to(handlers::contributions::get_user_contributions))
+                    .route("/{username}/contributions/stats", web::get().to(handlers::contributions::get_user_stats))
+                    .route("/{username}/platforms", web::get().to(handlers::platform_accounts::get_user_platforms))
+                    .route("/{username}/activities", web::get().to(handlers::activities::get_user_activities))
+            )
             .service(
                 web::scope("/activities")
                     .wrap(crate::middleware::auth::JwtMiddleware)

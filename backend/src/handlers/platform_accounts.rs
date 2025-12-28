@@ -1216,3 +1216,85 @@ pub async fn sync_platform(
         "message": "Contributions synced successfully"
     })))
 }
+
+/// GET /api/users/:username/platforms
+/// Public endpoint to get platform accounts for a user by username
+pub async fn get_user_platforms(
+    db: web::Data<DatabaseConnection>,
+    path: web::Path<String>,
+) -> Result<impl Responder, actix_web::Error> {
+    let username = path.into_inner();
+
+    // Find user by username
+    let user_model = crate::models::user::Entity::find()
+        .filter(crate::models::user::Column::Username.eq(&username))
+        .one(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?;
+
+    let user_model = match user_model {
+        Some(u) => u,
+        None => {
+            return Ok(HttpResponse::NotFound().json(ErrorResponse {
+                error: "User not found".to_string(),
+            }));
+        }
+    };
+
+    let user_id = user_model.id;
+
+    // Get all active platform accounts
+    let accounts = git_platform_account::Entity::find()
+        .filter(git_platform_account::Column::UserId.eq(user_id))
+        .filter(git_platform_account::Column::IsActive.eq(true))
+        .all(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Map to response (excluding sensitive data like access tokens)
+    let response: Vec<PlatformAccountResponse> = accounts
+        .into_iter()
+        .map(|account| {
+            let platform_str = match account.platform_type {
+                git_platform_account::GitPlatform::GitHub => "github",
+                git_platform_account::GitPlatform::GitLab => "gitlab",
+                git_platform_account::GitPlatform::Gitea => "gitea",
+            };
+
+            let auth_type_str = match account.auth_type {
+                git_platform_account::AuthType::OAuth => "oauth",
+                git_platform_account::AuthType::PersonalAccessToken => "personal_access_token",
+            };
+
+            PlatformAccountResponse {
+                id: account.id.to_string(),
+                platform: platform_str.to_string(),
+                platform_username: account.platform_username,
+                platform_url: account.platform_url,
+                is_active: account.is_active,
+                last_synced_at: account.last_synced_at.map(|dt| dt.to_rfc3339()),
+                created_at: account.created_at.to_rfc3339(),
+                updated_at: account.updated_at.to_rfc3339(),
+                avatar_url: account.avatar_url,
+                display_name: account.display_name,
+                bio: account.bio,
+                profile_url: account.profile_url,
+                location: account.location,
+                company: account.company,
+                followers_count: account.followers_count,
+                following_count: account.following_count,
+                sync_profile: account.sync_profile,
+                sync_contributions: account.sync_contributions,
+                auth_type: auth_type_str.to_string(),
+            }
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(response))
+}

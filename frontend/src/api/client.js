@@ -369,6 +369,75 @@ class ApiClient {
   async getSyncStatus() {
     return this.fetchWithAuth('/sync/status');
   }
+
+  // Public user profile endpoints (no authentication required)
+  async getUserContributions(username, from = null, to = null, platform = null) {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    if (platform) params.append('platform', platform);
+
+    const queryString = params.toString();
+    const url = queryString
+      ? `/users/${username}/contributions?${queryString}`
+      : `/users/${username}/contributions`;
+
+    // Use regular fetch without auth
+    const response = await fetch(`${API_BASE_URL}${url}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch user contributions');
+    }
+
+    return data;
+  }
+
+  async getUserStats(username) {
+    // Use regular fetch without auth
+    const response = await fetch(`${API_BASE_URL}/users/${username}/contributions/stats`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch user stats');
+    }
+
+    return data;
+  }
+
+  async getUserPlatforms(username) {
+    // Use regular fetch without auth
+    const response = await fetch(`${API_BASE_URL}/users/${username}/platforms`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch user platforms');
+    }
+
+    return data;
+  }
+
+  async getUserActivities(username, from = null, to = null, limit = 50, offset = 0, platform = null) {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+    if (platform) params.append('platform', platform);
+
+    const queryString = params.toString();
+    const url = `/users/${username}/activities?${queryString}`;
+
+    // Use regular fetch without auth
+    const response = await fetch(`${API_BASE_URL}${url}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch user activities');
+    }
+
+    return data;
+  }
 }
 
 export default new ApiClient();

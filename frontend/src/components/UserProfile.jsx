@@ -5,7 +5,7 @@ import apiClient from '../api/client';
 import PlatformIcon from './PlatformIcon';
 import './UserProfile.css';
 
-const UserProfile = () => {
+const UserProfile = ({ username = null, isPublic = false }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [stats, setStats] = useState(null);
@@ -15,12 +15,16 @@ const UserProfile = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch contribution stats
-        const statsData = await apiClient.getContributionStats();
+        // Fetch contribution stats - use public or authenticated API
+        const statsData = isPublic
+          ? await apiClient.getUserStats(username)
+          : await apiClient.getContributionStats();
         setStats(statsData);
 
-        // Fetch connected platforms
-        const platformsData = await apiClient.getPlatforms();
+        // Fetch platforms - use public or authenticated API
+        const platformsData = isPublic
+          ? await apiClient.getUserPlatforms(username)
+          : await apiClient.getPlatforms();
         setPlatforms(platformsData);
       } catch (error) {
         console.error('Failed to fetch user data:', error);
@@ -29,18 +33,20 @@ const UserProfile = () => {
 
     fetchData();
 
-    // Listen for platform sync events to refresh profile data
-    const handlePlatformSynced = () => {
-      console.log('Platform synced, refreshing profile data...');
-      fetchData();
-    };
+    // Listen for platform sync events to refresh profile data (only for authenticated users)
+    if (!isPublic) {
+      const handlePlatformSynced = () => {
+        console.log('Platform synced, refreshing profile data...');
+        fetchData();
+      };
 
-    window.addEventListener('platformSynced', handlePlatformSynced);
+      window.addEventListener('platformSynced', handlePlatformSynced);
 
-    return () => {
-      window.removeEventListener('platformSynced', handlePlatformSynced);
-    };
-  }, []);
+      return () => {
+        window.removeEventListener('platformSynced', handlePlatformSynced);
+      };
+    }
+  }, [username, isPublic]);
 
   // Generate fallback avatar URL (using UI Avatars service)
   const getFallbackAvatarUrl = (username) => {
@@ -83,7 +89,7 @@ const UserProfile = () => {
 
           <div className="stat-card">
             <div className="stat-label">Platforms</div>
-            <div className="stat-value">{platforms.length} connected</div>
+            <div className="stat-value">{stats.active_platforms || 0} connected</div>
           </div>
         </div>
       )}
@@ -192,8 +198,8 @@ const UserProfile = () => {
         </div>
       )}
 
-      {/* Empty State */}
-      {(!platforms || platforms.length === 0) && (
+      {/* Empty State - Only show for authenticated users with no platforms */}
+      {!isPublic && (!platforms || platforms.length === 0) && (
         <div className="empty-state">
           <p className="empty-message">No platforms connected yet</p>
           <p className="empty-hint">Connect a platform to see your profile</p>

@@ -74,7 +74,7 @@ function Settings() {
     <div className="settings-page">
       <div className="settings-header">
         <div className="settings-breadcrumb">
-          <Link to="/" className="breadcrumb-link">
+          <Link to={user ? `/${user.username}` : '/'} className="breadcrumb-link">
             Dashboard
           </Link>
           <span className="breadcrumb-separator">/</span>
@@ -179,7 +179,7 @@ function Settings() {
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
-            <Link to="/" className="btn btn-secondary">
+            <Link to={user ? `/${user.username}` : '/'} className="btn btn-secondary">
               Cancel
             </Link>
           </div>

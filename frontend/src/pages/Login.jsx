@@ -19,8 +19,8 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(username, password);
-      navigate('/');
+      const data = await login(username, password);
+      navigate(`/${data.username}`);
     } catch (err) {
       setError(err.message);
     } finally {

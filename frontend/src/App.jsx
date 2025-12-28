@@ -8,7 +8,8 @@ import SettingsLayout from './components/SettingsLayout';
 import UserSettings from './components/UserSettings';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Home from './pages/Home';
+import Landing from './pages/Landing';
+import Profile from './pages/Profile';
 import PlatformManagement from './pages/PlatformManagement';
 import OAuthCallback from './pages/OAuthCallback';
 import HeatmapThemes from './pages/HeatmapThemes';
@@ -22,6 +23,15 @@ function ThemeEditRedirect() {
   return <Navigate to={`/settings/themes/${slug}/edit`} replace />;
 }
 
+// Helper component for redirecting to user profile
+function RootRedirect() {
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  if (user && user.username) {
+    return <Navigate to={`/${user.username}`} replace />;
+  }
+  return <Landing />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -32,14 +42,9 @@ function App() {
               <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Home />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/" element={<RootRedirect />} />
+            {/* Public profile route */}
+            <Route path="/:username" element={<Profile />} />
             <Route
               path="/settings"
               element={
