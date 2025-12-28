@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiEdit, FiCopy, FiRefreshCw, FiStar, FiTrash2 } from 'react-icons/fi';
 import apiClient from '../api/client';
 import './HeatmapThemes.css';
 
@@ -200,21 +201,21 @@ function HeatmapThemes() {
                   onClick={() => navigate(`/heatmap/themes/${theme.slug}/edit`)}
                   title="Edit theme"
                 >
-                  ✏️ Edit
+                  <FiEdit />
                 </button>
                 <button
                   className="btn-icon"
                   onClick={() => handleDuplicate(theme.slug, theme.name)}
                   title="Duplicate theme"
                 >
-                  📋 Duplicate
+                  <FiCopy />
                 </button>
                 <button
                   className="btn-icon"
                   onClick={() => handleGenerate(theme.slug)}
                   title="Generate heatmap"
                 >
-                  🔄 Generate
+                  <FiRefreshCw />
                 </button>
                 {!theme.is_default && (
                   <button
@@ -222,7 +223,7 @@ function HeatmapThemes() {
                     onClick={() => handleSetDefault(theme.slug)}
                     title="Set as default"
                   >
-                    ⭐ Set Default
+                    <FiStar />
                   </button>
                 )}
                 {!theme.is_default && (
@@ -231,7 +232,7 @@ function HeatmapThemes() {
                     onClick={() => handleDelete(theme.slug, theme.name)}
                     title="Delete theme"
                   >
-                    🗑️ Delete
+                    <FiTrash2 />
                   </button>
                 )}
               </div>
@@ -248,8 +249,9 @@ function HeatmapThemes() {
                         navigator.clipboard.writeText(getEmbedUrl(theme.slug, format));
                         alert('Copied to clipboard!');
                       }}
+                      title="Copy to clipboard"
                     >
-                      📋
+                      <FiCopy />
                     </button>
                   </div>
                 ))}

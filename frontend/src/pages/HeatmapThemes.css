@@ -164,19 +164,27 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
 }
 
 .btn-icon {
-  flex: 1;
-  min-width: 80px;
-  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   background: var(--background);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.9rem;
   transition: all 0.2s;
+}
+
+.btn-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .btn-icon:hover {
@@ -195,9 +203,6 @@
 }
 
 .embed-urls {
-  background: var(--background);
-  padding: 1rem;
-  border-radius: 8px;
   margin-top: 1rem;
 }
 
@@ -212,6 +217,9 @@
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   align-items: center;
+  background: var(--background);
+  padding: 0.75rem;
+  border-radius: 8px;
 }
 
 .embed-url-row:last-child {
@@ -224,8 +232,8 @@
   padding: 0.5rem;
   border-radius: 4px;
   font-size: 0.85rem;
-  overflow-x: auto;
-  white-space: nowrap;
+  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .btn-copy {
