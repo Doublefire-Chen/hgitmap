@@ -15,66 +15,86 @@ pub struct AvailableFontsResponse {
 }
 
 /// Get list of available fonts for heatmap generation
-/// These are cross-platform safe fonts that work on most systems
+/// These fonts are commonly available on Linux systems (Debian/Ubuntu)
 pub async fn get_available_fonts() -> impl Responder {
     let fonts = vec![
-        // Sans-serif fonts (most common and safe)
+        // Sans-serif fonts (Linux standard)
         FontInfo {
-            name: "Arial".to_string(),
-            display_name: "Arial".to_string(),
+            name: "DejaVu Sans".to_string(),
+            display_name: "DejaVu Sans".to_string(),
             category: "sans-serif".to_string(),
         },
         FontInfo {
-            name: "Helvetica".to_string(),
-            display_name: "Helvetica".to_string(),
+            name: "Nimbus Sans".to_string(),
+            display_name: "Nimbus Sans".to_string(),
             category: "sans-serif".to_string(),
         },
         FontInfo {
-            name: "Verdana".to_string(),
-            display_name: "Verdana".to_string(),
+            name: "Nimbus Sans Narrow".to_string(),
+            display_name: "Nimbus Sans Narrow".to_string(),
             category: "sans-serif".to_string(),
         },
         FontInfo {
-            name: "Tahoma".to_string(),
-            display_name: "Tahoma".to_string(),
+            name: "URW Gothic".to_string(),
+            display_name: "URW Gothic".to_string(),
             category: "sans-serif".to_string(),
         },
         FontInfo {
-            name: "Trebuchet MS".to_string(),
-            display_name: "Trebuchet MS".to_string(),
+            name: "Droid Sans Fallback".to_string(),
+            display_name: "Droid Sans".to_string(),
             category: "sans-serif".to_string(),
         },
         // Serif fonts
         FontInfo {
-            name: "Times New Roman".to_string(),
-            display_name: "Times New Roman".to_string(),
+            name: "DejaVu Serif".to_string(),
+            display_name: "DejaVu Serif".to_string(),
             category: "serif".to_string(),
         },
         FontInfo {
-            name: "Georgia".to_string(),
-            display_name: "Georgia".to_string(),
+            name: "Nimbus Roman".to_string(),
+            display_name: "Nimbus Roman".to_string(),
+            category: "serif".to_string(),
+        },
+        FontInfo {
+            name: "C059".to_string(),
+            display_name: "C059 (Century Schoolbook)".to_string(),
+            category: "serif".to_string(),
+        },
+        FontInfo {
+            name: "P052".to_string(),
+            display_name: "P052 (Palatino)".to_string(),
+            category: "serif".to_string(),
+        },
+        FontInfo {
+            name: "URW Bookman".to_string(),
+            display_name: "URW Bookman".to_string(),
             category: "serif".to_string(),
         },
         // Monospace fonts
         FontInfo {
-            name: "Courier New".to_string(),
-            display_name: "Courier New".to_string(),
+            name: "DejaVu Sans Mono".to_string(),
+            display_name: "DejaVu Sans Mono".to_string(),
             category: "monospace".to_string(),
         },
         FontInfo {
-            name: "Courier".to_string(),
-            display_name: "Courier".to_string(),
+            name: "Nimbus Mono PS".to_string(),
+            display_name: "Nimbus Mono PS".to_string(),
             category: "monospace".to_string(),
         },
         FontInfo {
-            name: "monospace".to_string(),
-            display_name: "System Monospace".to_string(),
+            name: "Noto Sans Mono".to_string(),
+            display_name: "Noto Sans Mono".to_string(),
+            category: "monospace".to_string(),
+        },
+        FontInfo {
+            name: "Noto Mono".to_string(),
+            display_name: "Noto Mono".to_string(),
             category: "monospace".to_string(),
         },
     ];
 
     HttpResponse::Ok().json(AvailableFontsResponse {
         fonts,
-        default_font: "Arial".to_string(),
+        default_font: "DejaVu Sans".to_string(),
     })
 }

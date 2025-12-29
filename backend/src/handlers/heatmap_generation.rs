@@ -536,7 +536,10 @@ pub async fn preview_theme(
         show_total_count: payload.show_total_count.unwrap_or(true),
         show_username: payload.show_username.unwrap_or(true),
         show_watermark: payload.show_watermark.unwrap_or(true),
-        font_family: payload.font_family.clone().unwrap_or("Arial".to_string()),
+        font_family: payload
+            .font_family
+            .clone()
+            .unwrap_or("DejaVu Sans".to_string()),
         font_size: payload.font_size.unwrap_or(10),
         legend_position: payload
             .legend_position
