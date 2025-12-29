@@ -15,11 +15,8 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Security settings
+# Security settings (relaxed for compatibility)
 NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
 ReadWritePaths=/opt/hgitmap
 
 [Install]

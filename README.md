@@ -77,6 +77,8 @@ sudo apt install pkg-config libssl-dev build-essential # install build essential
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # only run it if Rust is not installed
 cargo build --release # built binary located at ./target/release/backend
 mkdir -p /opt/hgitmap
+sudo chown -R www-data:www-data /opt/hgitmap
+sudo chmod -R 755 /opt/hgitmap
 cp ./target/release/backend /opt/hgitmap/backend
 
 # Build frontend
@@ -100,12 +102,6 @@ Copy the service configuration:
 # Copy service file and edit as needed
 cd ~/hgitmap
 sudo cp configs/hgitmap.service /etc/systemd/system/
-
-# Set up permissions
-sudo mkdir -p /opt/hgitmap
-sudo chown -R www-data:www-data /opt/hgitmap
-sudo mv /path/to/hgitmap /opt/
-sudo chmod -R 755 /opt/hgitmap
 
 # Enable and start service
 sudo systemctl daemon-reload
