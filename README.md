@@ -43,7 +43,7 @@ cd hgitmap
 
 ### Step 2: Database Setup
 
-Use ./backend/db_schema/schema.sql to create the database schema.
+Use [./backend/db_schema/schema.sql](backend/db_schema/schema.sql) to create the database schema.
 
 ### Step 3: Build Application
 
