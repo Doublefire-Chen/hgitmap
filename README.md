@@ -43,6 +43,16 @@ cd hgitmap
 
 ### Step 2: Database Setup
 
+```bash
+psql
+```
+```
+CREATE USER hgitmap WITH PASSWORD 'strong-password';
+CREATE DATABASE hgitmap OWNER hgitmap;
+GRANT ALL PRIVILEGES ON DATABASE hgitmap TO hgitmap;
+```
+
+
 Use [./backend/db_schema/schema.sql](backend/db_schema/schema.sql) to create the database schema.
 
 ### Step 3: Build Application
