@@ -101,9 +101,6 @@ function HeatmapPreview({ theme }) {
         preview_format: outputFormat
       };
 
-      // Debug: log what we're sending
-      console.log('Preview request body:', requestBody);
-
       const response = await fetch(`${API_BASE_URL}/heatmap/preview`, {
         method: 'POST',
         headers: {
@@ -170,9 +167,9 @@ function HeatmapPreview({ theme }) {
               disabled={loading}
             >
               {loading ? '⏳ Generating...' :
-               showPreview && themeChanged ? '🔄 Update Preview' :
-               showPreview ? '🔼 Hide Preview' :
-               '🔽 Show Preview'}
+                showPreview && themeChanged ? '🔄 Update Preview' :
+                  showPreview ? '🔼 Hide Preview' :
+                    '🔽 Show Preview'}
             </button>
           </div>
         </div>

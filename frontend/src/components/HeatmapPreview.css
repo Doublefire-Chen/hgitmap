@@ -1,8 +1,4 @@
 .heatmap-preview {
-  background: var(--background-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 1.5rem;
   margin-top: 2rem;
 
   /* Allow preview to break out of parent's max-width constraint */
@@ -119,14 +115,10 @@
 }
 
 .preview-svg-container {
-  background: var(--background);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem;
   width: 100%;
 }
 
-.preview-svg-container > div {
+.preview-svg-container>div {
   width: 100%;
 }
 
@@ -145,7 +137,6 @@
 /* Responsive */
 @media (max-width: 768px) {
   .heatmap-preview {
-    padding: 1rem;
     margin-left: -1rem;
     margin-right: -1rem;
     padding-left: 1rem;
@@ -177,9 +168,5 @@
 
   .btn-preview {
     width: 100%;
-  }
-
-  .preview-svg-container {
-    padding: 1rem;
   }
 }
