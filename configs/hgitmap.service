@@ -15,9 +15,5 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Security settings (relaxed for compatibility)
-NoNewPrivileges=true
-ReadWritePaths=/opt/hgitmap
-
 [Install]
 WantedBy=multi-user.target
