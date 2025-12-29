@@ -80,12 +80,16 @@ function ThemeEditor() {
     try {
       const data = await apiClient.getAvailableFonts();
       setAvailableFonts(data.fonts || []);
+      // Update font_family to default if still using old default
+      if (formData.font_family === 'Arial' && !isEditing) {
+        setFormData(prev => ({ ...prev, font_family: data.default_font || 'Nimbus Sans' }));
+      }
     } catch (err) {
       console.error('Failed to load fonts:', err);
       // Set fallback fonts if API fails
       setAvailableFonts([
-        { name: 'Arial', display_name: 'Arial', category: 'sans-serif' },
-        { name: 'Helvetica', display_name: 'Helvetica', category: 'sans-serif' },
+        { name: 'Nimbus Sans', display_name: 'Nimbus Sans', category: 'sans-serif' },
+        { name: 'DejaVu Sans', display_name: 'DejaVu Sans', category: 'sans-serif' },
         { name: 'Courier New', display_name: 'Courier New', category: 'monospace' },
       ]);
     }
