@@ -111,9 +111,6 @@ async fn main() -> std::io::Result<()> {
             ])
             .max_age(3600);
 
-        // Permissive CORS for public embeddable content
-        let public_cors = Cors::permissive();
-
         App::new()
             .app_data(web::Data::new(db.clone()))
             .app_data(web::Data::new(config.clone()))
@@ -305,13 +302,13 @@ async fn main() -> std::io::Result<()> {
             // Public static file endpoints (no authentication required, allow embedding anywhere)
             .service(
                 web::scope("/static/heatmaps")
-                    .wrap(public_cors.clone())
+                    .wrap(Cors::permissive())
                     .route(
                         "/{user_id}/{filename}",
                         web::get().to(handlers::static_files::serve_heatmap),
                     ),
             )
-            .service(web::scope("/embed").wrap(public_cors.clone()).route(
+            .service(web::scope("/embed").wrap(Cors::permissive()).route(
                 "/{username}/{theme_file}",
                 web::get().to(handlers::static_files::serve_embed),
             ))
