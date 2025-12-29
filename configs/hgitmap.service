@@ -20,7 +20,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/hgitmap/backend
+ReadWritePaths=/opt/hgitmap
 
 [Install]
 WantedBy=multi-user.target
