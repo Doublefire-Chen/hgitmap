@@ -126,7 +126,7 @@ sudo ln -s /etc/nginx/sites-available/hgitmap /etc/nginx/sites-enabled/
 sudo nginx -t
 
 # Obtain SSL certificate
-sudo certbot --nginx -d yourdomain.com
+sudo certbot --nginx -d hgitmap-example.com -d api.hgitmap-example.com
 
 # Reload Nginx
 sudo systemctl reload nginx

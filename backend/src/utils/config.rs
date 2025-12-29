@@ -10,6 +10,7 @@ pub struct Config {
     pub jwt_expiration_hours: i64,
     pub allow_registration: bool,
     pub base_url: String,
+    pub frontend_url: String,
     pub encryption_key: String,
 }
 
@@ -34,6 +35,8 @@ impl Config {
                 .parse()
                 .expect("ALLOW_REGISTRATION must be true or false"),
             base_url: env::var("BASE_URL")?,
+            frontend_url: env::var("FRONTEND_URL")
+                .unwrap_or_else(|_| "http://localhost:5173".to_string()),
             encryption_key: env::var("ENCRYPTION_KEY")?,
         })
     }
