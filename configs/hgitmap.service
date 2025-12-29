@@ -1,0 +1,26 @@
+[Unit]
+Description=hgitmap Backend Service
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/hgitmap/backend
+Environment="RUST_LOG=info"
+ExecStart=/opt/hgitmap/backend/target/release/backend
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/hgitmap/backend
+
+[Install]
+WantedBy=multi-user.target
