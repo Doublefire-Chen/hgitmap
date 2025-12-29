@@ -69,8 +69,8 @@ cp .env.example .env # edit as needed
 openssl rand -base64 32
 
 # Configure .env
-cp .env.example .env
-vim .env
+cp .env.example /opt/hgitmap/.env
+vim /opt/hgitmap/.env
 
 # Build release binary
 sudo apt install pkg-config libssl-dev build-essential # install build essentials
