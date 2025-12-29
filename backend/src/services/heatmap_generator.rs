@@ -504,29 +504,43 @@ impl HeatmapGenerator {
                 "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
             ];
             let mut last_month = -1;
+            let mut month_positions: Vec<(usize, i32)> = Vec::new(); // (week_idx, month)
 
+            // First pass: collect all month positions
             for (week_idx, week) in data.weeks.iter().enumerate() {
                 // Find the first valid day in the week to determine the month
                 if let Some(first_day) = week.iter().find(|d| d.count != -1) {
                     let month = first_day.date.month0() as i32; // 0-based month
 
                     if month != last_month {
-                        let x = day_label_width + week_idx * (cell_size + cell_gap);
-                        let y = title_height + month_label_height - 3;
-
-                        svg.push_str(&format!(
-                            r#"<text x="{}" y="{}" font-family="{}" font-size="{}" fill="{}">{}</text>"#,
-                            x,
-                            y,
-                            theme.font_family,
-                            theme.font_size,
-                            theme.text_color,
-                            month_names[month as usize]
-                        ));
-
+                        month_positions.push((week_idx, month));
                         last_month = month;
                     }
                 }
+            }
+
+            // Second pass: render month labels, skipping first if too close to second
+            for (idx, (week_idx, month)) in month_positions.iter().enumerate() {
+                // Skip first month label if there's a second month within 3 weeks
+                if idx == 0 && month_positions.len() > 1 {
+                    let second_week_idx = month_positions[1].0;
+                    if second_week_idx < 3 {
+                        continue; // Skip first month label
+                    }
+                }
+
+                let x = day_label_width + week_idx * (cell_size + cell_gap);
+                let y = title_height + month_label_height - 3;
+
+                svg.push_str(&format!(
+                    r#"<text x="{}" y="{}" font-family="{}" font-size="{}" fill="{}">{}</text>"#,
+                    x,
+                    y,
+                    theme.font_family,
+                    theme.font_size,
+                    theme.text_color,
+                    month_names[*month as usize]
+                ));
             }
         }
 
