@@ -237,6 +237,11 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("/heatmap")
                     .wrap(crate::middleware::auth::JwtMiddleware)
+                    // Available fonts (public within auth)
+                    .route(
+                        "/fonts",
+                        web::get().to(handlers::fonts::get_available_fonts),
+                    )
                     // Theme management
                     .route(
                         "/themes",

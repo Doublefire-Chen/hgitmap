@@ -1,10 +1,10 @@
 use actix_web::{web, HttpResponse, Responder};
-use sea_orm::*;
 use sea_orm::sea_query::Expr;
+use sea_orm::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::{heatmap_theme, generated_heatmap};
+use crate::models::{generated_heatmap, heatmap_theme};
 
 // ============ Request/Response DTOs ============
 
@@ -104,7 +104,11 @@ impl From<heatmap_theme::Model> for HeatmapThemeResponse {
             font_family: model.font_family,
             font_size: model.font_size,
             legend_position: model.legend_position,
-            output_formats: model.output_formats.iter().map(|f| format_to_string_out(f)).collect(),
+            output_formats: model
+                .output_formats
+                .iter()
+                .map(|f| format_to_string_out(f))
+                .collect(),
             created_at: model.created_at.to_rfc3339(),
             updated_at: model.updated_at.to_rfc3339(),
         }
@@ -159,7 +163,9 @@ pub struct CreateThemeRequest {
     pub output_formats: Option<Vec<String>>,
 }
 
-fn parse_output_formats(formats: &[String]) -> Result<Vec<heatmap_theme::HeatmapFormat>, actix_web::Error> {
+fn parse_output_formats(
+    formats: &[String],
+) -> Result<Vec<heatmap_theme::HeatmapFormat>, actix_web::Error> {
     let mut parsed = Vec::new();
     for format in formats {
         let f = match format.as_str() {
@@ -167,7 +173,12 @@ fn parse_output_formats(formats: &[String]) -> Result<Vec<heatmap_theme::Heatmap
             "png" => heatmap_theme::HeatmapFormat::Png,
             "jpeg" => heatmap_theme::HeatmapFormat::Jpeg,
             "webp" => heatmap_theme::HeatmapFormat::WebP,
-            _ => return Err(actix_web::error::ErrorBadRequest(format!("Invalid format: {}", format))),
+            _ => {
+                return Err(actix_web::error::ErrorBadRequest(format!(
+                    "Invalid format: {}",
+                    format
+                )))
+            }
         };
         parsed.push(f);
     }
@@ -220,9 +231,8 @@ pub async fn list_themes(
     db: web::Data<DatabaseConnection>,
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     let themes = heatmap_theme::Entity::find()
         .filter(heatmap_theme::Column::UserId.eq(user_id))
@@ -234,9 +244,8 @@ pub async fn list_themes(
             actix_web::error::ErrorInternalServerError("Database error")
         })?;
 
-    let response: Vec<HeatmapThemeResponse> = themes.into_iter()
-        .map(HeatmapThemeResponse::from)
-        .collect();
+    let response: Vec<HeatmapThemeResponse> =
+        themes.into_iter().map(HeatmapThemeResponse::from).collect();
 
     Ok(HttpResponse::Ok().json(response))
 }
@@ -248,9 +257,8 @@ pub async fn get_theme(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     path: web::Path<String>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
     let slug = path.into_inner();
 
     let theme = heatmap_theme::Entity::find()
@@ -276,9 +284,8 @@ pub async fn create_theme(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     payload: web::Json<CreateThemeRequest>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Check if slug already exists for this user
     let existing = heatmap_theme::Entity::find()
@@ -292,7 +299,9 @@ pub async fn create_theme(
         })?;
 
     if existing.is_some() {
-        return Err(actix_web::error::ErrorConflict("Theme with this slug already exists"));
+        return Err(actix_web::error::ErrorConflict(
+            "Theme with this slug already exists",
+        ));
     }
 
     // Parse theme mode
@@ -317,9 +326,10 @@ pub async fn create_theme(
         _ => return Err(actix_web::error::ErrorBadRequest("Invalid color scheme")),
     };
 
-    let custom_colors = payload.custom_colors.as_ref().map(|colors| {
-        serde_json::to_value(colors).unwrap()
-    });
+    let custom_colors = payload
+        .custom_colors
+        .as_ref()
+        .map(|colors| serde_json::to_value(colors).unwrap());
 
     // Parse output formats
     let output_formats = if let Some(ref formats) = payload.output_formats {
@@ -344,15 +354,30 @@ pub async fn create_theme(
         theme_mode: Set(theme_mode),
         color_scheme: Set(color_scheme),
         custom_colors: Set(custom_colors),
-        background_color: Set(payload.background_color.clone().unwrap_or_else(|| default_bg.to_string())),
-        border_color: Set(payload.border_color.clone().unwrap_or_else(|| "#d1d5da".to_string())),
-        text_color: Set(payload.text_color.clone().unwrap_or_else(|| default_text.to_string())),
-        empty_cell_color: Set(payload.empty_cell_color.clone().unwrap_or_else(|| default_empty.to_string())),
+        background_color: Set(payload
+            .background_color
+            .clone()
+            .unwrap_or_else(|| default_bg.to_string())),
+        border_color: Set(payload
+            .border_color
+            .clone()
+            .unwrap_or_else(|| "#d1d5da".to_string())),
+        text_color: Set(payload
+            .text_color
+            .clone()
+            .unwrap_or_else(|| default_text.to_string())),
+        empty_cell_color: Set(payload
+            .empty_cell_color
+            .clone()
+            .unwrap_or_else(|| default_empty.to_string())),
         cell_size: Set(payload.cell_size.unwrap_or(10)),
         cell_gap: Set(payload.cell_gap.unwrap_or(2)),
         cell_border_radius: Set(payload.cell_border_radius.unwrap_or(2)),
         cell_border_width: Set(payload.cell_border_width.unwrap_or(0)),
-        cell_border_color: Set(payload.cell_border_color.clone().unwrap_or_else(|| "#d1d5da".to_string())),
+        cell_border_color: Set(payload
+            .cell_border_color
+            .clone()
+            .unwrap_or_else(|| "#d1d5da".to_string())),
         heatmap_width: Set(payload.heatmap_width),
         heatmap_height: Set(payload.heatmap_height),
         padding_top: Set(payload.padding_top.unwrap_or(20)),
@@ -369,9 +394,15 @@ pub async fn create_theme(
         show_total_count: Set(payload.show_total_count.unwrap_or(true)),
         show_username: Set(payload.show_username.unwrap_or(true)),
         show_watermark: Set(payload.show_watermark.unwrap_or(true)),
-        font_family: Set(payload.font_family.clone().unwrap_or_else(|| "sans-serif".to_string())),
+        font_family: Set(payload
+            .font_family
+            .clone()
+            .unwrap_or_else(|| "Arial".to_string())),
         font_size: Set(payload.font_size.unwrap_or(10)),
-        legend_position: Set(payload.legend_position.clone().unwrap_or_else(|| "bottom".to_string())),
+        legend_position: Set(payload
+            .legend_position
+            .clone()
+            .unwrap_or_else(|| "bottom".to_string())),
         output_formats: Set(output_formats),
         created_at: Set(chrono::Utc::now()),
         updated_at: Set(chrono::Utc::now()),
@@ -396,9 +427,8 @@ pub async fn update_theme(
     path: web::Path<String>,
     payload: web::Json<UpdateThemeRequest>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
     let slug = path.into_inner();
 
     let theme = heatmap_theme::Entity::find()
@@ -539,9 +569,8 @@ pub async fn delete_theme(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     path: web::Path<String>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
     let slug = path.into_inner();
 
     let theme = heatmap_theme::Entity::find()
@@ -561,7 +590,9 @@ pub async fn delete_theme(
 
     // Don't allow deleting default theme
     if theme.is_default {
-        return Err(actix_web::error::ErrorBadRequest("Cannot delete default theme"));
+        return Err(actix_web::error::ErrorBadRequest(
+            "Cannot delete default theme",
+        ));
     }
 
     heatmap_theme::Entity::delete_by_id(theme.id)
@@ -582,9 +613,8 @@ pub async fn set_default_theme(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     path: web::Path<String>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
     let slug = path.into_inner();
 
     // Start a transaction
@@ -654,9 +684,8 @@ pub async fn duplicate_theme(
     path: web::Path<String>,
     payload: web::Json<DuplicateThemeRequest>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
     let source_slug = path.into_inner();
 
     // Find the source theme
@@ -687,7 +716,9 @@ pub async fn duplicate_theme(
         })?;
 
     if existing.is_some() {
-        return Err(actix_web::error::ErrorConflict("Theme with this slug already exists"));
+        return Err(actix_web::error::ErrorConflict(
+            "Theme with this slug already exists",
+        ));
     }
 
     // Create duplicate with all settings from source theme
@@ -742,7 +773,12 @@ pub async fn duplicate_theme(
             actix_web::error::ErrorInternalServerError("Failed to duplicate theme")
         })?;
 
-    log::info!("Theme '{}' duplicated to '{}' for user {}", source_slug, payload.new_slug, user_id);
+    log::info!(
+        "Theme '{}' duplicated to '{}' for user {}",
+        source_slug,
+        payload.new_slug,
+        user_id
+    );
 
     Ok(HttpResponse::Created().json(HeatmapThemeResponse::from(duplicated_theme)))
 }

@@ -1,10 +1,13 @@
 use actix_web::{web, HttpResponse, Responder};
+use chrono::Utc;
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::Utc;
 
-use crate::models::{heatmap_generation_setting, heatmap_generation_job, generated_heatmap, heatmap_theme, user, git_platform_account};
+use crate::models::{
+    generated_heatmap, git_platform_account, heatmap_generation_job, heatmap_generation_setting,
+    heatmap_theme, user,
+};
 use crate::services::heatmap_generator::HeatmapGenerator;
 
 // ============ Request/Response DTOs ============
@@ -29,8 +32,12 @@ impl From<heatmap_generation_setting::Model> for GenerationSettingsResponse {
             date_range_days: model.date_range_days,
             include_private_contributions: model.include_private_contributions,
             storage_path: model.storage_path,
-            last_scheduled_generation_at: model.last_scheduled_generation_at.map(|dt| dt.to_rfc3339()),
-            next_scheduled_generation_at: model.next_scheduled_generation_at.map(|dt| dt.to_rfc3339()),
+            last_scheduled_generation_at: model
+                .last_scheduled_generation_at
+                .map(|dt| dt.to_rfc3339()),
+            next_scheduled_generation_at: model
+                .next_scheduled_generation_at
+                .map(|dt| dt.to_rfc3339()),
             updated_at: model.updated_at.to_rfc3339(),
         }
     }
@@ -125,9 +132,8 @@ pub async fn get_generation_settings(
     db: web::Data<DatabaseConnection>,
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     let settings = heatmap_generation_setting::Entity::find()
         .filter(heatmap_generation_setting::Column::UserId.eq(user_id))
@@ -176,15 +182,14 @@ pub async fn update_generation_settings(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     payload: web::Json<UpdateGenerationSettingsRequest>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Validate update_interval_minutes if provided
     if let Some(interval) = payload.update_interval_minutes {
         if interval < 15 || interval > 1440 {
             return Err(actix_web::error::ErrorBadRequest(
-                "Update interval must be between 15 and 1440 minutes"
+                "Update interval must be between 15 and 1440 minutes",
             ));
         }
     }
@@ -193,7 +198,7 @@ pub async fn update_generation_settings(
     if let Some(days) = payload.date_range_days {
         if days < 1 || days > 730 {
             return Err(actix_web::error::ErrorBadRequest(
-                "Date range must be between 1 and 730 days"
+                "Date range must be between 1 and 730 days",
             ));
         }
     }
@@ -212,9 +217,9 @@ pub async fn update_generation_settings(
                     actix_web::error::ErrorInternalServerError("Database error")
                 })?;
 
-            let has_any_sync_enabled = platforms.iter().any(|p| {
-                p.sync_profile || p.sync_contributions
-            });
+            let has_any_sync_enabled = platforms
+                .iter()
+                .any(|p| p.sync_profile || p.sync_contributions);
 
             if !has_any_sync_enabled {
                 return Err(actix_web::error::ErrorBadRequest(
@@ -272,7 +277,9 @@ pub async fn update_generation_settings(
                 update_interval_minutes: Set(payload.update_interval_minutes.unwrap_or(60)),
                 auto_generation_enabled: Set(payload.auto_generation_enabled.unwrap_or(false)),
                 date_range_days: Set(payload.date_range_days.unwrap_or(365)),
-                include_private_contributions: Set(payload.include_private_contributions.unwrap_or(true)),
+                include_private_contributions: Set(payload
+                    .include_private_contributions
+                    .unwrap_or(true)),
                 storage_path: Set(payload.storage_path.clone()),
                 last_scheduled_generation_at: Set(None),
                 next_scheduled_generation_at: Set(None),
@@ -301,9 +308,8 @@ pub async fn trigger_generation(
     db: web::Data<DatabaseConnection>,
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Create a generation job
     let job = heatmap_generation_job::ActiveModel {
@@ -340,9 +346,8 @@ pub async fn trigger_theme_generation(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     path: web::Path<String>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
     let theme_slug = path.into_inner();
 
     // Find the theme
@@ -395,9 +400,8 @@ pub async fn list_generated_heatmaps(
     db: web::Data<DatabaseConnection>,
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     let heatmaps = generated_heatmap::Entity::find()
         .filter(generated_heatmap::Column::UserId.eq(user_id))
@@ -409,7 +413,8 @@ pub async fn list_generated_heatmaps(
             actix_web::error::ErrorInternalServerError("Database error")
         })?;
 
-    let response: Vec<GeneratedHeatmapInfo> = heatmaps.into_iter()
+    let response: Vec<GeneratedHeatmapInfo> = heatmaps
+        .into_iter()
         .map(GeneratedHeatmapInfo::from)
         .collect();
 
@@ -423,11 +428,11 @@ pub async fn list_generation_jobs(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     query: web::Query<std::collections::HashMap<String, String>>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
-    let limit: u64 = query.get("limit")
+    let limit: u64 = query
+        .get("limit")
         .and_then(|l| l.parse().ok())
         .unwrap_or(50);
 
@@ -456,9 +461,8 @@ pub async fn list_generation_jobs(
             actix_web::error::ErrorInternalServerError("Database error")
         })?;
 
-    let response: Vec<GenerationJobResponse> = jobs.into_iter()
-        .map(GenerationJobResponse::from)
-        .collect();
+    let response: Vec<GenerationJobResponse> =
+        jobs.into_iter().map(GenerationJobResponse::from).collect();
 
     Ok(HttpResponse::Ok().json(response))
 }
@@ -470,12 +474,12 @@ pub async fn preview_theme(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     payload: web::Json<PreviewThemeRequest>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Debug: log the incoming request
-    log::info!("Preview request - color_scheme: {}, background_color: {:?}, custom_colors: {:?}",
+    log::info!(
+        "Preview request - color_scheme: {}, background_color: {:?}, custom_colors: {:?}",
         payload.color_scheme,
         payload.background_color,
         payload.custom_colors
@@ -491,18 +495,31 @@ pub async fn preview_theme(
         is_default: false,
         theme_mode: parse_theme_mode(&payload.theme_mode)?,
         color_scheme: parse_color_scheme(&payload.color_scheme)?,
-        custom_colors: payload.custom_colors.clone().map(|colors| {
-            serde_json::to_value(colors).unwrap_or(serde_json::Value::Null)
-        }),
-        background_color: payload.background_color.clone().unwrap_or("#ffffff".to_string()),
-        border_color: payload.border_color.clone().unwrap_or("#d1d5da".to_string()),
+        custom_colors: payload
+            .custom_colors
+            .clone()
+            .map(|colors| serde_json::to_value(colors).unwrap_or(serde_json::Value::Null)),
+        background_color: payload
+            .background_color
+            .clone()
+            .unwrap_or("#ffffff".to_string()),
+        border_color: payload
+            .border_color
+            .clone()
+            .unwrap_or("#d1d5da".to_string()),
         text_color: payload.text_color.clone().unwrap_or("#24292e".to_string()),
-        empty_cell_color: payload.empty_cell_color.clone().unwrap_or("#ebedf0".to_string()),
+        empty_cell_color: payload
+            .empty_cell_color
+            .clone()
+            .unwrap_or("#ebedf0".to_string()),
         cell_size: payload.cell_size.unwrap_or(10),
         cell_gap: payload.cell_gap.unwrap_or(2),
         cell_border_radius: payload.cell_border_radius.unwrap_or(2),
         cell_border_width: payload.cell_border_width.unwrap_or(0),
-        cell_border_color: payload.cell_border_color.clone().unwrap_or("#d1d5da".to_string()),
+        cell_border_color: payload
+            .cell_border_color
+            .clone()
+            .unwrap_or("#d1d5da".to_string()),
         heatmap_width: payload.heatmap_width,
         heatmap_height: payload.heatmap_height,
         padding_top: payload.padding_top.unwrap_or(20),
@@ -519,9 +536,12 @@ pub async fn preview_theme(
         show_total_count: payload.show_total_count.unwrap_or(true),
         show_username: payload.show_username.unwrap_or(true),
         show_watermark: payload.show_watermark.unwrap_or(true),
-        font_family: payload.font_family.clone().unwrap_or("sans-serif".to_string()),
+        font_family: payload.font_family.clone().unwrap_or("Arial".to_string()),
         font_size: payload.font_size.unwrap_or(10),
-        legend_position: payload.legend_position.clone().unwrap_or("bottom".to_string()),
+        legend_position: payload
+            .legend_position
+            .clone()
+            .unwrap_or("bottom".to_string()),
         output_formats: vec![],
         created_at: Utc::now(),
         updated_at: Utc::now(),
@@ -565,7 +585,8 @@ pub async fn preview_theme(
     });
 
     // Override date range if preview dates are provided
-    if let (Some(from_date), Some(to_date)) = (&payload.preview_from_date, &payload.preview_to_date) {
+    if let (Some(from_date), Some(to_date)) = (&payload.preview_from_date, &payload.preview_to_date)
+    {
         use chrono::NaiveDate;
 
         // Parse dates
@@ -579,7 +600,7 @@ pub async fn preview_theme(
 
         if days < 1 || days > 730 {
             return Err(actix_web::error::ErrorBadRequest(
-                "Preview date range must be between 1 and 730 days"
+                "Preview date range must be between 1 and 730 days",
             ));
         }
 
@@ -590,7 +611,8 @@ pub async fn preview_theme(
     let generator = HeatmapGenerator::new(db.get_ref().clone());
 
     // Fetch real contribution data
-    let heatmap_data = generator.fetch_contribution_data(user_id, &settings)
+    let heatmap_data = generator
+        .fetch_contribution_data(user_id, &settings)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch contribution data: {}", e);
@@ -608,7 +630,8 @@ pub async fn preview_theme(
     };
 
     // Generate in the requested format with username
-    let content = generator.generate_heatmap_with_username(&theme, &heatmap_data, &format, Some(&user_model.username))
+    let content = generator
+        .generate_heatmap_with_username(&theme, &heatmap_data, &format, Some(&user_model.username))
         .map_err(|e| {
             log::error!("Failed to generate preview: {}", e);
             actix_web::error::ErrorInternalServerError("Failed to generate preview")
@@ -622,9 +645,7 @@ pub async fn preview_theme(
         heatmap_theme::HeatmapFormat::WebP => "image/webp",
     };
 
-    Ok(HttpResponse::Ok()
-        .content_type(content_type)
-        .body(content))
+    Ok(HttpResponse::Ok().content_type(content_type).body(content))
 }
 
 #[derive(Debug, Deserialize)]

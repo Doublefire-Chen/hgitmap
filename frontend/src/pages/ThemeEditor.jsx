@@ -15,6 +15,7 @@ function ThemeEditor() {
   const [loading, setLoading] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [availableFonts, setAvailableFonts] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -60,7 +61,7 @@ function ThemeEditor() {
     show_watermark: true,
 
     // Font
-    font_family: 'sans-serif',
+    font_family: 'Arial',
     font_size: 10,
     legend_position: 'bottom',
 
@@ -69,10 +70,26 @@ function ThemeEditor() {
   });
 
   useEffect(() => {
+    loadAvailableFonts();
     if (isEditing) {
       loadTheme();
     }
   }, [slug]);
+
+  const loadAvailableFonts = async () => {
+    try {
+      const data = await apiClient.getAvailableFonts();
+      setAvailableFonts(data.fonts || []);
+    } catch (err) {
+      console.error('Failed to load fonts:', err);
+      // Set fallback fonts if API fails
+      setAvailableFonts([
+        { name: 'Arial', display_name: 'Arial', category: 'sans-serif' },
+        { name: 'Helvetica', display_name: 'Helvetica', category: 'sans-serif' },
+        { name: 'Courier New', display_name: 'Courier New', category: 'monospace' },
+      ]);
+    }
+  };
 
   const loadTheme = async () => {
     try {
@@ -146,17 +163,17 @@ function ThemeEditor() {
   const handleThemeModeChange = (mode) => {
     const defaults = mode === 'dark'
       ? {
-          background_color: '#0d1117',
-          text_color: '#c9d1d9',
-          empty_cell_color: '#161b22',
-          border_color: '#30363d',
-        }
+        background_color: '#0d1117',
+        text_color: '#c9d1d9',
+        empty_cell_color: '#161b22',
+        border_color: '#30363d',
+      }
       : {
-          background_color: '#ffffff',
-          text_color: '#24292e',
-          empty_cell_color: '#ebedf0',
-          border_color: '#d1d5da',
-        };
+        background_color: '#ffffff',
+        text_color: '#24292e',
+        empty_cell_color: '#ebedf0',
+        border_color: '#d1d5da',
+      };
 
     setFormData(prev => ({ ...prev, theme_mode: mode, ...defaults }));
   };
@@ -643,12 +660,16 @@ function ThemeEditor() {
           <div className="form-row">
             <div className="form-group">
               <label>Font Family</label>
-              <input
-                type="text"
+              <select
                 value={formData.font_family}
                 onChange={(e) => handleChange('font_family', e.target.value)}
-                placeholder="sans-serif"
-              />
+              >
+                {availableFonts.map(font => (
+                  <option key={font.name} value={font.name}>
+                    {font.display_name} ({font.category})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="form-group">

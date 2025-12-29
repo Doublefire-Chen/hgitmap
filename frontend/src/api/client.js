@@ -94,7 +94,7 @@ class ApiClient {
       }
 
       // Return a promise that never resolves to prevent further execution
-      return new Promise(() => {});
+      return new Promise(() => { });
     }
 
     // Handle 204 No Content responses (like DELETE)
@@ -357,6 +357,11 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(themeData),
     });
+  }
+
+  // Get available fonts
+  async getAvailableFonts() {
+    return this.fetchWithAuth('/heatmap/fonts');
   }
 
   // Platform Sync
