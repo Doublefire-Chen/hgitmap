@@ -98,6 +98,7 @@ async fn main() -> std::io::Result<()> {
     log::info!("Server started at http://{}:{}", host, port);
 
     HttpServer::new(move || {
+        // Strict CORS for authenticated API endpoints
         let cors = Cors::default()
             .allowed_origin("http://localhost:5173")
             .allowed_origin("http://localhost:3000")
@@ -109,6 +110,9 @@ async fn main() -> std::io::Result<()> {
                 actix_web::http::header::CONTENT_TYPE,
             ])
             .max_age(3600);
+
+        // Permissive CORS for public embeddable content
+        let public_cors = Cors::permissive();
 
         App::new()
             .app_data(web::Data::new(db.clone()))
@@ -298,12 +302,16 @@ async fn main() -> std::io::Result<()> {
                         web::post().to(handlers::heatmap_generation::preview_theme),
                     ),
             )
-            // Public static file endpoints (no authentication required)
-            .service(web::scope("/static/heatmaps").route(
-                "/{user_id}/{filename}",
-                web::get().to(handlers::static_files::serve_heatmap),
-            ))
-            .service(web::scope("/embed").route(
+            // Public static file endpoints (no authentication required, allow embedding anywhere)
+            .service(
+                web::scope("/static/heatmaps")
+                    .wrap(public_cors.clone())
+                    .route(
+                        "/{user_id}/{filename}",
+                        web::get().to(handlers::static_files::serve_heatmap),
+                    ),
+            )
+            .service(web::scope("/embed").wrap(public_cors.clone()).route(
                 "/{username}/{theme_file}",
                 web::get().to(handlers::static_files::serve_embed),
             ))
