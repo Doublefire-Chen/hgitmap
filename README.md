@@ -133,7 +133,7 @@ sudo systemctl reload nginx
 ```
 
 ### Step 6: Access Application
-The first user to register will become the admin. Access the application at `https://yourdomain.com`.
+The first user to register will become the admin. Access the application at `https://hgitmap-example.com`.
 
 ## Platform Authentication Setup
 
