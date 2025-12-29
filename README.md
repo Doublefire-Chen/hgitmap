@@ -3,7 +3,7 @@
 A unified contribution heatmap aggregator that integrates your contributions from multiple git hosting platforms (GitHub, Gitea, GitLab) into one beautiful visualization.
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
-![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)
+![Rust](https://img.shields.io/badge/rust-1.80+-orange.svg)
 ![React](https://img.shields.io/badge/react-18+-blue.svg)
 ![PostgreSQL](https://img.shields.io/badge/postgresql-14+-blue.svg)
 
@@ -34,9 +34,11 @@ A unified contribution heatmap aggregator that integrates your contributions fro
 - Node.js
 - PostgreSQL
 - Nginx
+- Build essentials: `sudo apt install pkg-config libssl-dev build-essential`
 
 ### Step 1: Clone Repository
 ```bash
+cd ~
 git clone https://github.com/Doublefire-Chen/hgitmap
 cd hgitmap
 ```
@@ -61,27 +63,33 @@ Use [./backend/db_schema/schema.sql](backend/db_schema/schema.sql) to create the
 
 # Build backend
 cd backend
-cp .env.example .env
+cp .env.example .env # edit as needed
 
-# Generate encryption key
-ENCRYPTION_KEY=$(openssl rand -base64 32)
+# Gommand to generate encryption key
+openssl rand -base64 32
 
 # Configure .env
 cp .env.example .env
 vim .env
 
 # Build release binary
-cargo build --release
+sudo apt install pkg-config libssl-dev build-essential # install build essentials
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # only run it if Rust is not installed
+cargo build --release # built binary located at ./target/release/backend
+mkdir -p /opt/hgitmap
+cp ./target/release/backend /opt/hgitmap/backend
 
 # Build frontend
 cd ../frontend
-npm install
+pnpm install # or npm install if you use npm
 
 # Create production .env
 cp .env.example .env
 vim .env
 
-npm run build
+pnpm run build # the built files are located at ./dist
+mkdir -p /var/www/hgitmap
+cp -r dist/* /var/www/hgitmap/ # copy to your web server directory
 ```
 
 ### Step 4: Create Systemd Service
@@ -90,6 +98,7 @@ Copy the service configuration:
 
 ```bash
 # Copy service file and edit as needed
+cd ~/hgitmap
 sudo cp configs/hgitmap.service /etc/systemd/system/
 
 # Set up permissions
