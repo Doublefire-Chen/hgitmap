@@ -95,6 +95,6 @@ pub async fn get_available_fonts() -> impl Responder {
 
     HttpResponse::Ok().json(AvailableFontsResponse {
         fonts,
-        default_font: "DejaVu Sans".to_string(),
+        default_font: "Nimbus Sans".to_string(),
     })
 }

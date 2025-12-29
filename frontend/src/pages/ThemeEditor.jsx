@@ -65,8 +65,8 @@ function ThemeEditor() {
     font_size: 10,
     legend_position: 'bottom',
 
-    // Format (single selection)
-    output_format: 'png',
+    // Formats (multiple selection)
+    output_formats: ['png'],
   });
 
   useEffect(() => {
@@ -132,9 +132,7 @@ function ThemeEditor() {
         font_family: theme.font_family,
         font_size: theme.font_size,
         legend_position: theme.legend_position,
-        output_format: theme.output_formats && theme.output_formats.length > 0
-          ? theme.output_formats[0]
-          : 'png',
+        output_formats: theme.output_formats || ['png'],
       });
 
       setError(null);
@@ -185,17 +183,10 @@ function ThemeEditor() {
       setSaving(true);
       setError(null);
 
-      // Convert single format to array for backend
-      const submitData = {
-        ...formData,
-        output_formats: [formData.output_format]
-      };
-      delete submitData.output_format;
-
       if (isEditing) {
-        await apiClient.updateTheme(slug, submitData);
+        await apiClient.updateTheme(slug, formData);
       } else {
-        await apiClient.createTheme(submitData);
+        await apiClient.createTheme(formData);
       }
 
       navigate('/settings/themes');
@@ -685,24 +676,29 @@ function ThemeEditor() {
           </div>
         </section>
 
-        {/* Output Format */}
+        {/* Output Formats */}
         <section className="form-section">
-          <h2>Output Format *</h2>
+          <h2>Output Formats *</h2>
 
-          <div className="radio-group">
+          <div className="checkbox-group-horizontal">
             {FORMATS.map(format => (
-              <label key={format} className="radio-option">
+              <label key={format} className="checkbox-option">
                 <input
-                  type="radio"
-                  name="output_format"
-                  checked={formData.output_format === format}
-                  onChange={() => handleChange('output_format', format)}
+                  type="checkbox"
+                  checked={formData.output_formats.includes(format)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      handleChange('output_formats', [...formData.output_formats, format]);
+                    } else {
+                      handleChange('output_formats', formData.output_formats.filter(f => f !== format));
+                    }
+                  }}
                 />
                 <span>{format.toUpperCase()}</span>
               </label>
             ))}
           </div>
-          <p className="hint-text">Select the format for generated heatmaps</p>
+          <p className="hint-text">Select one or more formats for generated heatmaps</p>
         </section>
 
         {/* Preview */}

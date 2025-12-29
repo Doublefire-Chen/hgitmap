@@ -397,7 +397,7 @@ pub async fn create_theme(
         font_family: Set(payload
             .font_family
             .clone()
-            .unwrap_or_else(|| "DejaVu Sans".to_string())),
+            .unwrap_or_else(|| "Nimbus Sans".to_string())),
         font_size: Set(payload.font_size.unwrap_or(10)),
         legend_position: Set(payload
             .legend_position

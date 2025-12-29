@@ -539,7 +539,7 @@ pub async fn preview_theme(
         font_family: payload
             .font_family
             .clone()
-            .unwrap_or("DejaVu Sans".to_string()),
+            .unwrap_or("Nimbus Sans".to_string()),
         font_size: payload.font_size.unwrap_or(10),
         legend_position: payload
             .legend_position
