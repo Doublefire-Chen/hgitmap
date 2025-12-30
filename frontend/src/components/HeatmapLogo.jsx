@@ -17,16 +17,14 @@ const HeatmapLogo = ({ size = 48 }) => {
   const { theme } = useTheme();
   const strokeColor = theme === 'dark' ? '#fff' : '#000';
 
-  // Generate heatmap pattern - use deterministic pattern based on position
+  // Generate random heatmap pattern when theme changes
   const patternRects = useMemo(() => {
     const rects = [];
     for (let row = 0; row < GRID_SIZE; row++) {
       const yPos = row * SPACING;
       for (let col = 0; col < GRID_SIZE; col++) {
         const xPos = col * SPACING;
-        // Use position-based deterministic color selection
-        const colorIndex = (row * 2 + col * 3) % COLORS.length;
-        const color = COLORS[colorIndex];
+        const color = COLORS[Math.floor(Math.random() * COLORS.length)];
         rects.push(
           <rect
             key={`${row}-${col}`}
@@ -43,7 +41,7 @@ const HeatmapLogo = ({ size = 48 }) => {
       }
     }
     return rects;
-  }, [strokeColor]); // Only strokeColor dependency needed
+  }, [theme, strokeColor]); // Regenerate when theme changes
 
   return (
     <svg
