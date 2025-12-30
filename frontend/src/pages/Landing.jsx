@@ -5,7 +5,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import './Landing.css';
 
 const Landing = () => {
-  // Generate heatmap data with month labels
+  // Generate heatmap data with month labels (deterministic pattern)
   const heatmapData = useMemo(() => {
     const weeks = [];
     const monthLabels = [];
@@ -14,7 +14,8 @@ const Landing = () => {
     for (let weekIndex = 0; weekIndex < 40; weekIndex++) {
       const week = [];
       for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-        const level = Math.floor(Math.random() * 5);
+        // Use deterministic pattern based on position
+        const level = (weekIndex + dayIndex * 2) % 5;
         // Approximate month for demo (cycles through months)
         const month = Math.floor((weekIndex / 4.33)) % 12;
         week.push({ level, month });

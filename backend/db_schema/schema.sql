@@ -217,6 +217,54 @@ CREATE TABLE oauth_states (
 CREATE INDEX idx_oauth_states_token ON oauth_states(state_token);
 CREATE INDEX idx_oauth_states_expires ON oauth_states(expires_at);
 
+-- Sync job status enum
+CREATE TYPE sync_job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+
+-- Platform sync jobs table for async background syncing
+CREATE TABLE platform_sync_jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    platform_account_id UUID NOT NULL REFERENCES git_platform_accounts(id) ON DELETE CASCADE,
+    
+    status sync_job_status NOT NULL DEFAULT 'pending',
+    
+    -- Sync parameters
+    sync_all_years BOOLEAN NOT NULL DEFAULT FALSE,
+    specific_year INTEGER,
+    sync_contributions BOOLEAN NOT NULL DEFAULT TRUE,
+    sync_activities BOOLEAN NOT NULL DEFAULT TRUE,
+    sync_profile BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    -- Job scheduling
+    scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Result tracking
+    error_message TEXT,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    max_retries INTEGER NOT NULL DEFAULT 3,
+    
+    -- Progress tracking
+    contributions_synced INTEGER,
+    activities_synced INTEGER,
+    years_completed INTEGER DEFAULT 0,
+    total_years INTEGER DEFAULT 0,
+    
+    -- Job metadata
+    is_manual BOOLEAN NOT NULL DEFAULT TRUE,
+    priority INTEGER NOT NULL DEFAULT 0,
+    
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for efficient sync job queries
+CREATE INDEX idx_platform_sync_jobs_status ON platform_sync_jobs(status);
+CREATE INDEX idx_platform_sync_jobs_user_id ON platform_sync_jobs(user_id);
+CREATE INDEX idx_platform_sync_jobs_platform_account_id ON platform_sync_jobs(platform_account_id);
+CREATE INDEX idx_platform_sync_jobs_scheduled_at ON platform_sync_jobs(scheduled_at);
+CREATE INDEX idx_platform_sync_jobs_priority_scheduled ON platform_sync_jobs(priority DESC, scheduled_at ASC) WHERE status = 'pending';
+
 -- Trigger function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

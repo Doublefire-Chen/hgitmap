@@ -24,6 +24,7 @@ export default function OAuthAppsManager() {
 
   useEffect(() => {
     loadApps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadApps = async () => {
@@ -156,75 +157,75 @@ export default function OAuthAppsManager() {
               </button>
             </div>
 
-          {apps.length === 0 ? (
-            <div className="empty-state">
-              <p>No OAuth applications configured.</p>
-              <p className="hint">
-                Add an OAuth app to allow users to connect their Git platform accounts without using Personal Access Tokens.
-              </p>
-            </div>
-          ) : (
-            <div className="apps-list">
-              {apps.map((app) => (
-                <div key={app.id} className={`app-card ${!app.is_enabled ? 'disabled' : ''}`}>
-                  <div className="app-header">
-                    <div className="app-title">
-                      <div className="app-title-row">
-                        <PlatformIcon platform={app.platform} size={24} />
-                        <h3>{app.instance_name}</h3>
-                      </div>
-                      <div className="app-badges">
-                        {app.is_default && <span className="badge badge-default">Default</span>}
-                        {!app.is_enabled && <span className="badge badge-disabled">Disabled</span>}
-                        <label className="toggle-switch" title={app.is_enabled ? 'Enabled - Click to disable' : 'Disabled - Click to enable'}>
-                          <input
-                            type="checkbox"
-                            checked={app.is_enabled}
-                            onChange={() => handleToggleEnabled(app)}
-                            aria-label={app.is_enabled ? 'Disable OAuth app' : 'Enable OAuth app'}
-                          />
-                          <span className="toggle-slider"></span>
-                        </label>
-                      </div>
-                    </div>
-                    <div className="url-actions-row">
-                      <div className="instance-url-display">
-                        <span className="instance-url-text">
-                          {app.instance_url || (app.platform === 'github' ? 'https://github.com' : `https://${app.platform}.com`)}
-                        </span>
-                      </div>
-                      <div className="app-actions">
-                        <div
-                          onClick={() => handleEdit(app)}
-                          className="btn-icon btn-icon-secondary"
-                          title="Edit"
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => e.key === 'Enter' && handleEdit(app)}
-                          aria-label="Edit OAuth app"
-                        >
-                          <FiEdit size={18} />
+            {apps.length === 0 ? (
+              <div className="empty-state">
+                <p>No OAuth applications configured.</p>
+                <p className="hint">
+                  Add an OAuth app to allow users to connect their Git platform accounts without using Personal Access Tokens.
+                </p>
+              </div>
+            ) : (
+              <div className="apps-list">
+                {apps.map((app) => (
+                  <div key={app.id} className={`app-card ${!app.is_enabled ? 'disabled' : ''}`}>
+                    <div className="app-header">
+                      <div className="app-title">
+                        <div className="app-title-row">
+                          <PlatformIcon platform={app.platform} size={24} />
+                          <h3>{app.instance_name}</h3>
                         </div>
+                        <div className="app-badges">
+                          {app.is_default && <span className="badge badge-default">Default</span>}
+                          {!app.is_enabled && <span className="badge badge-disabled">Disabled</span>}
+                          <label className="toggle-switch" title={app.is_enabled ? 'Enabled - Click to disable' : 'Disabled - Click to enable'}>
+                            <input
+                              type="checkbox"
+                              checked={app.is_enabled}
+                              onChange={() => handleToggleEnabled(app)}
+                              aria-label={app.is_enabled ? 'Disable OAuth app' : 'Enable OAuth app'}
+                            />
+                            <span className="toggle-slider"></span>
+                          </label>
+                        </div>
+                      </div>
+                      <div className="url-actions-row">
+                        <div className="instance-url-display">
+                          <span className="instance-url-text">
+                            {app.instance_url || (app.platform === 'github' ? 'https://github.com' : `https://${app.platform}.com`)}
+                          </span>
+                        </div>
+                        <div className="app-actions">
+                          <div
+                            onClick={() => handleEdit(app)}
+                            className="btn-icon btn-icon-secondary"
+                            title="Edit"
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && handleEdit(app)}
+                            aria-label="Edit OAuth app"
+                          >
+                            <FiEdit size={18} />
+                          </div>
 
-                        <div
-                          onClick={() => handleDelete(app.id)}
-                          className="btn-icon btn-icon-danger"
-                          title="Delete"
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(e) => e.key === 'Enter' && handleDelete(app.id)}
-                          aria-label="Delete OAuth app"
-                        >
-                          <FiTrash2 size={18} />
+                          <div
+                            onClick={() => handleDelete(app.id)}
+                            className="btn-icon btn-icon-danger"
+                            title="Delete"
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && handleDelete(app.id)}
+                            aria-label="Delete OAuth app"
+                          >
+                            <FiTrash2 size={18} />
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="form-section">
             <div className="form-header">

@@ -4,7 +4,7 @@ import './Heatmap.css';
 
 function Heatmap({ platformFilter = 'all', setPlatformFilter, username = null, isPublic = false }) {
   const [contributions, setContributions] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [_stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('rolling'); // 'rolling' or 'year'
@@ -281,7 +281,7 @@ function Heatmap({ platformFilter = 'all', setPlatformFilter, username = null, i
 
   const formatTooltipDate = (date) => {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                        'July', 'August', 'September', 'October', 'November', 'December'];
+      'July', 'August', 'September', 'October', 'November', 'December'];
     const month = monthNames[date.getMonth()];
     const day = date.getDate();
     const suffix = getOrdinalSuffix(day);
@@ -351,84 +351,84 @@ function Heatmap({ platformFilter = 'all', setPlatformFilter, username = null, i
             </h2>
           </div>
 
-      {/* Heatmap Grid */}
-      <div className="heatmap-wrapper">
-        <div className="heatmap-months">
-          {monthLabels.map((label, index) => (
-            <div
-              key={index}
-              className="month-label"
-              style={{ gridColumn: label.weekIndex + 1 }}
-            >
-              {monthNames[label.month]}
+          {/* Heatmap Grid */}
+          <div className="heatmap-wrapper">
+            <div className="heatmap-months">
+              {monthLabels.map((label, index) => (
+                <div
+                  key={index}
+                  className="month-label"
+                  style={{ gridColumn: label.weekIndex + 1 }}
+                >
+                  {monthNames[label.month]}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="heatmap-grid-wrapper">
-          <div className="heatmap-days">
-            <div className="day-label"></div>
-            <div className="day-label">Mon</div>
-            <div className="day-label"></div>
-            <div className="day-label">Wed</div>
-            <div className="day-label"></div>
-            <div className="day-label">Fri</div>
-            <div className="day-label"></div>
-          </div>
-
-          <div className="heatmap-grid">
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="heatmap-week">
-                {week.map((day, dayIndex) => {
-                  // Debug rendering for first week
-                  if (weekIndex === 0) {
-                    console.log(`[RENDER] Week 0, Day ${dayIndex}:`, day === null ? 'NULL' : `date=${day.date}, count=${day.count}`);
-                  }
-
-                  if (!day) {
-                    return <div key={dayIndex} className="heatmap-day empty"></div>;
-                  }
-
-                  const level = getIntensityLevel(day.count, quartiles);
-                  const date = new Date(day.date);
-                  const tooltipDate = formatTooltipDate(date);
-                  const tooltipText = day.count === 0
-                    ? `No contributions on ${tooltipDate}.`
-                    : `${day.count} contribution${day.count === 1 ? '' : 's'} on ${tooltipDate}.`;
-
-                  return (
-                    <div
-                      key={dayIndex}
-                      className={`heatmap-day level-${level}`}
-                      data-count={day.count}
-                      data-date={tooltipDate}
-                      title={tooltipText}
-                    ></div>
-                  );
-                })}
+            <div className="heatmap-grid-wrapper">
+              <div className="heatmap-days">
+                <div className="day-label"></div>
+                <div className="day-label">Mon</div>
+                <div className="day-label"></div>
+                <div className="day-label">Wed</div>
+                <div className="day-label"></div>
+                <div className="day-label">Fri</div>
+                <div className="day-label"></div>
               </div>
-            ))}
+
+              <div className="heatmap-grid">
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="heatmap-week">
+                    {week.map((day, dayIndex) => {
+                      // Debug rendering for first week
+                      if (weekIndex === 0) {
+                        console.log(`[RENDER] Week 0, Day ${dayIndex}:`, day === null ? 'NULL' : `date=${day.date}, count=${day.count}`);
+                      }
+
+                      if (!day) {
+                        return <div key={dayIndex} className="heatmap-day empty"></div>;
+                      }
+
+                      const level = getIntensityLevel(day.count, quartiles);
+                      const date = new Date(day.date);
+                      const tooltipDate = formatTooltipDate(date);
+                      const tooltipText = day.count === 0
+                        ? `No contributions on ${tooltipDate}.`
+                        : `${day.count} contribution${day.count === 1 ? '' : 's'} on ${tooltipDate}.`;
+
+                      return (
+                        <div
+                          key={dayIndex}
+                          className={`heatmap-day level-${level}`}
+                          data-count={day.count}
+                          data-date={tooltipDate}
+                          title={tooltipText}
+                        ></div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="heatmap-legend">
+              <span className="legend-label">Less</span>
+              <div className="legend-square level-0"></div>
+              <div className="legend-square level-1"></div>
+              <div className="legend-square level-2"></div>
+              <div className="legend-square level-3"></div>
+              <div className="legend-square level-4"></div>
+              <span className="legend-label">More</span>
+            </div>
           </div>
-        </div>
 
-        {/* Legend */}
-        <div className="heatmap-legend">
-          <span className="legend-label">Less</span>
-          <div className="legend-square level-0"></div>
-          <div className="legend-square level-1"></div>
-          <div className="legend-square level-2"></div>
-          <div className="legend-square level-3"></div>
-          <div className="legend-square level-4"></div>
-          <span className="legend-label">More</span>
-        </div>
-      </div>
-
-      {contributions.length === 0 && (
-        <div className="no-contributions-message">
-          <p>No contributions yet {viewMode === 'rolling' ? 'in the last year' : `for ${year}`}.</p>
-          <p>Connect a platform to start tracking your contributions!</p>
-        </div>
-      )}
+          {contributions.length === 0 && (
+            <div className="no-contributions-message">
+              <p>No contributions yet {viewMode === 'rolling' ? 'in the last year' : `for ${year}`}.</p>
+              <p>Connect a platform to start tracking your contributions!</p>
+            </div>
+          )}
         </div>
 
         {/* Year Selector Sidebar */}

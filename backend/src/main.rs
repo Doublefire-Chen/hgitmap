@@ -58,6 +58,13 @@ async fn main() -> std::io::Result<()> {
     log::info!("Starting heatmap generation job processor");
     services::job_processor::start_job_processor(db.clone());
 
+    // Start sync job processor for platform data syncing
+    log::info!("Starting platform sync job processor");
+    services::sync_job_processor::start_sync_job_processor(
+        db.clone(),
+        config.encryption_key.clone(),
+    );
+
     // Start sync scheduler for automatic platform data syncing
     log::info!("Starting platform sync scheduler");
     let scheduler = std::sync::Arc::new(services::sync_scheduler::SyncScheduler::new(
@@ -184,6 +191,26 @@ async fn main() -> std::io::Result<()> {
                     .route(
                         "/{id}/sync",
                         web::post().to(handlers::platform_accounts::sync_platform),
+                    )
+                    .route(
+                        "/{id}/sync-async",
+                        web::post().to(handlers::platform_sync_jobs::sync_platform_async),
+                    )
+                    .route(
+                        "/sync-jobs/{job_id}",
+                        web::get().to(handlers::platform_sync_jobs::get_sync_job_status),
+                    )
+                    .route(
+                        "/sync-jobs/{job_id}",
+                        web::delete().to(handlers::platform_sync_jobs::cancel_sync_job),
+                    )
+                    .route(
+                        "/sync-jobs/{job_id}/delete",
+                        web::delete().to(handlers::platform_sync_jobs::delete_sync_job),
+                    )
+                    .route(
+                        "/sync-jobs",
+                        web::get().to(handlers::platform_sync_jobs::list_sync_jobs),
                     ),
             )
             .service(

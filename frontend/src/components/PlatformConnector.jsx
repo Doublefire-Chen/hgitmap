@@ -224,10 +224,13 @@ function PlatformConnector() {
         year = parseInt(syncOption);
       }
 
-      await apiClient.syncPlatform(platformId, allYears, year);
+      // Use async endpoint for background sync
+      await apiClient.syncPlatformAsync(platformId, allYears, year);
 
       const yearText = allYears ? 'all years' : year ? `year ${year}` : 'current year';
-      alert(`Sync (${yearText}) completed successfully! Heatmap and activities have been updated.`);
+      alert(`Sync job created for ${yearText}! The sync will run in the background and may take several minutes. You can continue using the app.`);
+
+      // Reload platforms to show updated last_synced_at (will update when job completes)
       await loadPlatforms();
 
       // Trigger a custom event to refresh profile display
@@ -243,10 +246,10 @@ function PlatformConnector() {
     try {
       setSyncingProfileId(platformId);
 
-      // Sync profile only - do not sync contributions
-      await apiClient.syncPlatform(platformId, false, null, true);
+      // Sync profile only - do not sync contributions (use async endpoint)
+      await apiClient.syncPlatformAsync(platformId, false, null, true);
 
-      alert('Profile synced successfully! Avatar, bio, and other profile details have been updated.');
+      alert('Profile sync job created! The profile will be updated in the background.');
       await loadPlatforms();
 
       // Trigger a custom event to refresh profile display
@@ -641,9 +644,9 @@ function PlatformConnector() {
               onChange={(e) => setPatToken(e.target.value)}
               placeholder={
                 selectedPlatform === 'github' ? 'ghp_xxxxxxxxxxxx' :
-                selectedPlatform === 'gitea' ? 'Your Gitea token' :
-                selectedPlatform === 'gitlab' ? 'glpat-xxxxxxxxxxxx' :
-                'Token'
+                  selectedPlatform === 'gitea' ? 'Your Gitea token' :
+                    selectedPlatform === 'gitlab' ? 'glpat-xxxxxxxxxxxx' :
+                      'Token'
               }
               className="pat-input"
               disabled={patLoading}

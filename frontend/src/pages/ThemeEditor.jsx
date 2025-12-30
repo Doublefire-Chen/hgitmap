@@ -74,6 +74,7 @@ function ThemeEditor() {
     if (isEditing) {
       loadTheme();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   const loadAvailableFonts = async () => {

@@ -56,6 +56,7 @@ function ActivityTimeline({ platformFilter = 'all', username = null, isPublic = 
       setLoading(false);
       console.log('🏁 [ActivityTimeline] Loading finished, loading state set to false');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [limit, platformFilter, isPublic, username]);
 
   useEffect(() => {
@@ -84,6 +85,7 @@ function ActivityTimeline({ platformFilter = 'all', username = null, isPublic = 
     };
 
     fetchPlatforms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadActivities, isPublic, username]);
 
   const loadMore = () => {
@@ -436,33 +438,33 @@ function ActivityTimeline({ platformFilter = 'all', username = null, isPublic = 
       </div>
 
       <div className="timeline-content">
-          {allMonths.map((month) => (
-            <div key={month.key} className="month-group">
-              <h3 className="month-header">{month.key}</h3>
-              {month.isEmpty ? (
-                <div className="empty-month-message">
-                  <span>{platformUsername} had no activity during this period.</span>
-                </div>
-              ) : (
-                <div className="activities-list">
-                  {month.activities.map(activity => renderActivity(activity))}
-                </div>
-              )}
-            </div>
-          ))}
+        {allMonths.map((month) => (
+          <div key={month.key} className="month-group">
+            <h3 className="month-header">{month.key}</h3>
+            {month.isEmpty ? (
+              <div className="empty-month-message">
+                <span>{platformUsername} had no activity during this period.</span>
+              </div>
+            ) : (
+              <div className="activities-list">
+                {month.activities.map(activity => renderActivity(activity))}
+              </div>
+            )}
+          </div>
+        ))}
 
-          {hasMore && (
-            <div className="load-more-container">
-              <button
-                className="load-more-button"
-                onClick={loadMore}
-                disabled={loading}
-              >
-                {loading ? 'Loading...' : 'Show more activity'}
-              </button>
-            </div>
-          )}
-        </div>
+        {hasMore && (
+          <div className="load-more-container">
+            <button
+              className="load-more-button"
+              onClick={loadMore}
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Show more activity'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

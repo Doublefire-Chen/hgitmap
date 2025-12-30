@@ -91,12 +91,6 @@ function HeatmapThemes() {
     }
   };
 
-  const getGeneratedHeatmap = (themeId, format) => {
-    return generatedHeatmaps.find(
-      h => h.theme_id === themeId && h.format === format && h.is_valid
-    );
-  };
-
   const getEmbedUrl = (slug, format) => {
     return apiClient.getHeatmapEmbedUrl(user.username, slug, format);
   };
@@ -184,16 +178,16 @@ function HeatmapThemes() {
               {generatedHeatmaps.find(
                 h => h.theme_id === theme.id && h.is_valid
               ) && (
-                <div className="theme-preview">
-                  <img
-                    src={getEmbedUrl(theme.slug, theme.output_formats[0])}
-                    alt={`${theme.name} preview`}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                </div>
-              )}
+                  <div className="theme-preview">
+                    <img
+                      src={getEmbedUrl(theme.slug, theme.output_formats[0])}
+                      alt={`${theme.name} preview`}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
 
               <div className="theme-actions">
                 <button

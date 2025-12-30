@@ -1130,12 +1130,13 @@ impl GitHubClient {
                     break;
                 }
 
-                // Be nice to the API - longer delay between pages (increased from 100ms to 500ms)
+                // Be nice to the API - longer delay between pages (500ms for rate limit management)
                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
 
-            // Be nice to the API - longer delay between searches (increased from 200ms to 1000ms)
-            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+            // Be nice to the API - longer delay between searches (2 seconds for rate limit management)
+            // This significantly reduces the chance of hitting rate limits during multi-year syncs
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
         log::info!(

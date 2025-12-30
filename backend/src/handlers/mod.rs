@@ -7,6 +7,7 @@ pub mod heatmap_themes;
 pub mod oauth;
 pub mod oauth_apps;
 pub mod platform_accounts;
+pub mod platform_sync_jobs;
 pub mod settings;
 pub mod static_files;
 pub mod sync;

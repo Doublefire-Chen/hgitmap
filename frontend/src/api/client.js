@@ -157,6 +157,49 @@ class ApiClient {
     });
   }
 
+  async syncPlatformAsync(platformId, allYears = false, year = null, profileOnly = false) {
+    const queryParams = [];
+    if (allYears) {
+      queryParams.push('all_years=true');
+    } else if (year) {
+      queryParams.push(`year=${year}`);
+    }
+    if (profileOnly) {
+      queryParams.push('profile_only=true');
+    }
+
+    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+
+    return this.fetchWithAuth(`/platforms/${platformId}/sync-async${queryString}`, {
+      method: 'POST',
+    });
+  }
+
+  async getSyncJobStatus(jobId) {
+    return this.fetchWithAuth(`/platforms/sync-jobs/${jobId}`);
+  }
+
+  async listPlatformSyncJobs(status = null, limit = 50) {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('limit', limit.toString());
+
+    const queryString = params.toString();
+    return this.fetchWithAuth(`/platforms/sync-jobs?${queryString}`);
+  }
+
+  async cancelSyncJob(jobId) {
+    return this.fetchWithAuth(`/platforms/sync-jobs/${jobId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteSyncJob(jobId) {
+    return this.fetchWithAuth(`/platforms/sync-jobs/${jobId}/delete`, {
+      method: 'DELETE',
+    });
+  }
+
   async updatePlatformSyncPreferences(platformId, preferences) {
     return this.fetchWithAuth(`/platforms/${platformId}/sync-preferences`, {
       method: 'PUT',

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import apiClient from '../api/client';
 import './HeatmapPreview.css';
 
 function HeatmapPreview({ theme }) {
