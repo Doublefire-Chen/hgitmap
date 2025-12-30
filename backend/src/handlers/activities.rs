@@ -1,4 +1,5 @@
 use actix_web::{web, HttpResponse, Responder};
+use sea_orm::sea_query::{Expr, Func};
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -47,9 +48,8 @@ pub async fn get_activities(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     query: web::Query<ActivitiesQuery>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Get user settings for privacy filtering
     let settings = user_setting::Entity::find()
@@ -88,14 +88,14 @@ pub async fn get_activities(
                 })));
             }
         };
-        accounts_query = accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
+        accounts_query =
+            accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
     }
 
-    let accounts = accounts_query.all(db.as_ref()).await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let accounts = accounts_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     if accounts.is_empty() {
         return Ok(HttpResponse::Ok().json(ActivitiesResponse {
@@ -108,10 +108,8 @@ pub async fn get_activities(
     let account_ids: Vec<Uuid> = accounts.iter().map(|a| a.id).collect();
 
     // Create a HashMap for quick platform account lookups
-    let accounts_map: std::collections::HashMap<Uuid, &git_platform_account::Model> = accounts
-        .iter()
-        .map(|a| (a.id, a))
-        .collect();
+    let accounts_map: std::collections::HashMap<Uuid, &git_platform_account::Model> =
+        accounts.iter().map(|a| (a.id, a)).collect();
 
     // Build query for activities
     let mut activity_query = activity::Entity::find()
@@ -180,7 +178,10 @@ pub async fn get_activities(
                     if let Some(repos_array) = repos.as_array_mut() {
                         for repo in repos_array.iter_mut() {
                             if let Some(repo_obj) = repo.as_object_mut() {
-                                repo_obj.insert("name".to_string(), serde_json::json!("Private Repository"));
+                                repo_obj.insert(
+                                    "name".to_string(),
+                                    serde_json::json!("Private Repository"),
+                                );
                             }
                         }
                     }
@@ -225,9 +226,11 @@ pub async fn get_user_activities(
 ) -> Result<impl Responder, actix_web::Error> {
     let username = path.into_inner();
 
-    // Find user by username
+    // Find user by username (case-insensitive)
     let user_model = user::Entity::find()
-        .filter(user::Column::Username.eq(&username))
+        .filter(
+            Expr::expr(Func::lower(Expr::col(user::Column::Username))).eq(username.to_lowercase()),
+        )
         .one(db.as_ref())
         .await
         .map_err(|e| {
@@ -283,14 +286,14 @@ pub async fn get_user_activities(
                 })));
             }
         };
-        accounts_query = accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
+        accounts_query =
+            accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
     }
 
-    let accounts = accounts_query.all(db.as_ref()).await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let accounts = accounts_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     if accounts.is_empty() {
         return Ok(HttpResponse::Ok().json(ActivitiesResponse {
@@ -303,10 +306,8 @@ pub async fn get_user_activities(
     let account_ids: Vec<Uuid> = accounts.iter().map(|a| a.id).collect();
 
     // Create a HashMap for quick platform account lookups
-    let accounts_map: std::collections::HashMap<Uuid, &git_platform_account::Model> = accounts
-        .iter()
-        .map(|a| (a.id, a))
-        .collect();
+    let accounts_map: std::collections::HashMap<Uuid, &git_platform_account::Model> =
+        accounts.iter().map(|a| (a.id, a)).collect();
 
     // Build query for activities
     let mut activity_query = activity::Entity::find()
@@ -375,7 +376,10 @@ pub async fn get_user_activities(
                     if let Some(repos_array) = repos.as_array_mut() {
                         for repo in repos_array.iter_mut() {
                             if let Some(repo_obj) = repo.as_object_mut() {
-                                repo_obj.insert("name".to_string(), serde_json::json!("Private Repository"));
+                                repo_obj.insert(
+                                    "name".to_string(),
+                                    serde_json::json!("Private Repository"),
+                                );
                             }
                         }
                     }

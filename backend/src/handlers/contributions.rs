@@ -1,4 +1,5 @@
 use actix_web::{web, HttpResponse, Responder};
+use sea_orm::sea_query::{Expr, Func};
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -40,9 +41,8 @@ pub async fn get_contributions(
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
     query: web::Query<ContributionsQuery>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Get user settings for privacy filtering
     let settings = user_setting::Entity::find()
@@ -77,16 +77,14 @@ pub async fn get_contributions(
                 })));
             }
         };
-        accounts_query = accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
+        accounts_query =
+            accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
     }
 
-    let accounts = accounts_query
-        .all(db.as_ref())
-        .await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let accounts = accounts_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     if accounts.is_empty() {
         return Ok(HttpResponse::Ok().json(ContributionsResponse {
@@ -122,18 +120,17 @@ pub async fn get_contributions(
         }
     }
 
-    let contributions = contribution_query
-        .all(db.as_ref())
-        .await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let contributions = contribution_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     // Aggregate contributions by date
     let mut contribution_map: HashMap<chrono::NaiveDate, i32> = HashMap::new();
     for contrib in contributions {
-        *contribution_map.entry(contrib.contribution_date).or_insert(0) += contrib.count;
+        *contribution_map
+            .entry(contrib.contribution_date)
+            .or_insert(0) += contrib.count;
     }
 
     let mut contribution_days: Vec<ContributionDay> = contribution_map
@@ -160,9 +157,8 @@ pub async fn get_stats(
     db: web::Data<DatabaseConnection>,
     user_claims: web::ReqData<crate::middleware::auth::Claims>,
 ) -> Result<impl Responder, actix_web::Error> {
-    let user_id = Uuid::parse_str(&user_claims.sub).map_err(|e| {
-        actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e))
-    })?;
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
 
     // Get user settings for privacy filtering
     let settings = user_setting::Entity::find()
@@ -213,13 +209,10 @@ pub async fn get_stats(
             contribution_query.filter(contribution::Column::IsPrivateRepo.eq(false));
     }
 
-    let contributions = contribution_query
-        .all(db.as_ref())
-        .await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let contributions = contribution_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     // Calculate stats
     let total_contributions: i32 = contributions.iter().map(|c| c.count).sum();
@@ -244,7 +237,9 @@ fn calculate_streaks(contributions: &[contribution::Model]) -> (i32, i32) {
     // Group by date and sum counts
     let mut contribution_map: HashMap<chrono::NaiveDate, i32> = HashMap::new();
     for contrib in contributions {
-        *contribution_map.entry(contrib.contribution_date).or_insert(0) += contrib.count;
+        *contribution_map
+            .entry(contrib.contribution_date)
+            .or_insert(0) += contrib.count;
     }
 
     let mut dates: Vec<chrono::NaiveDate> = contribution_map.keys().copied().collect();
@@ -296,7 +291,7 @@ pub async fn get_user_contributions(
 ) -> Result<impl Responder, actix_web::Error> {
     let username = path.into_inner();
 
-    // Find user by username
+    // Find user by username (case-insensitive)
     let user_model = user::Entity::find()
         .filter(user::Column::Username.eq(&username))
         .one(db.as_ref())
@@ -350,16 +345,14 @@ pub async fn get_user_contributions(
                 })));
             }
         };
-        accounts_query = accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
+        accounts_query =
+            accounts_query.filter(git_platform_account::Column::PlatformType.eq(platform_type));
     }
 
-    let accounts = accounts_query
-        .all(db.as_ref())
-        .await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let accounts = accounts_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     if accounts.is_empty() {
         return Ok(HttpResponse::Ok().json(ContributionsResponse {
@@ -395,18 +388,17 @@ pub async fn get_user_contributions(
         }
     }
 
-    let contributions = contribution_query
-        .all(db.as_ref())
-        .await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let contributions = contribution_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     // Aggregate contributions by date
     let mut contribution_map: HashMap<chrono::NaiveDate, i32> = HashMap::new();
     for contrib in contributions {
-        *contribution_map.entry(contrib.contribution_date).or_insert(0) += contrib.count;
+        *contribution_map
+            .entry(contrib.contribution_date)
+            .or_insert(0) += contrib.count;
     }
 
     let mut contribution_days: Vec<ContributionDay> = contribution_map
@@ -435,9 +427,11 @@ pub async fn get_user_stats(
 ) -> Result<impl Responder, actix_web::Error> {
     let username = path.into_inner();
 
-    // Find user by username
+    // Find user by username (case-insensitive)
     let user_model = user::Entity::find()
-        .filter(user::Column::Username.eq(&username))
+        .filter(
+            Expr::expr(Func::lower(Expr::col(user::Column::Username))).eq(username.to_lowercase()),
+        )
         .one(db.as_ref())
         .await
         .map_err(|e| {
@@ -505,13 +499,10 @@ pub async fn get_user_stats(
             contribution_query.filter(contribution::Column::IsPrivateRepo.eq(false));
     }
 
-    let contributions = contribution_query
-        .all(db.as_ref())
-        .await
-        .map_err(|e| {
-            log::error!("Database error: {}", e);
-            actix_web::error::ErrorInternalServerError("Database error")
-        })?;
+    let contributions = contribution_query.all(db.as_ref()).await.map_err(|e| {
+        log::error!("Database error: {}", e);
+        actix_web::error::ErrorInternalServerError("Database error")
+    })?;
 
     // Calculate stats
     let total_contributions: i32 = contributions.iter().map(|c| c.count).sum();

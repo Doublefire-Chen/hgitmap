@@ -1,7 +1,7 @@
 use actix_web::{web, Responder};
 use actix_files::NamedFile;
 use sea_orm::*;
-use sea_orm::sea_query::Expr;
+use sea_orm::sea_query::{Expr, Func};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -63,9 +63,9 @@ pub async fn serve_embed(
     let format_str = parts[0];
     let theme_slug = parts[1];
 
-    // Find user by username
+    // Find user by username (case-insensitive)
     let user = crate::models::user::Entity::find()
-        .filter(crate::models::user::Column::Username.eq(&username))
+        .filter(Expr::expr(Func::lower(Expr::col(crate::models::user::Column::Username))).eq(username.to_lowercase()))
         .one(db.as_ref())
         .await
         .map_err(|e| {
