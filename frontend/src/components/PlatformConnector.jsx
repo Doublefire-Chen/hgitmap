@@ -27,6 +27,46 @@ function PlatformConnector() {
   const [gitlabInstances, setGitlabInstances] = useState([]);
   const [loadingGitlabInstances, setLoadingGitlabInstances] = useState(false);
   const [activeAuthTab, setActiveAuthTab] = useState('oauth'); // 'oauth' or 'pat'
+  const [availableOAuthApps, setAvailableOAuthApps] = useState({
+    github: false,
+    gitlab: false,
+    gitea: false
+  });
+
+  useEffect(() => {
+    loadPlatforms();
+    loadAvailableOAuthApps();
+  }, []);
+
+  const loadAvailableOAuthApps = async () => {
+    try {
+      // Check GitHub OAuth
+      try {
+        const githubInstances = await apiClient.listOAuthInstances('github');
+        setAvailableOAuthApps(prev => ({ ...prev, github: githubInstances.length > 0 }));
+      } catch (err) {
+        console.log('GitHub OAuth not configured');
+      }
+
+      // Check GitLab OAuth
+      try {
+        const gitlabInstances = await apiClient.listOAuthInstances('gitlab');
+        setAvailableOAuthApps(prev => ({ ...prev, gitlab: gitlabInstances.length > 0 }));
+      } catch (err) {
+        console.log('GitLab OAuth not configured');
+      }
+
+      // Check Gitea OAuth
+      try {
+        const giteaInstances = await apiClient.listOAuthInstances('gitea');
+        setAvailableOAuthApps(prev => ({ ...prev, gitea: giteaInstances.length > 0 }));
+      } catch (err) {
+        console.log('Gitea OAuth not configured');
+      }
+    } catch (err) {
+      console.error('Failed to load OAuth apps:', err);
+    }
+  };
 
   useEffect(() => {
     loadPlatforms();
@@ -381,27 +421,38 @@ function PlatformConnector() {
             <div className="connect-buttons">
               {activeAuthTab === 'oauth' ? (
                 <>
-                  <button className="btn btn-platform btn-github" onClick={handleConnectOAuth}>
-                    <PlatformIcon platform="github" size={20} />
-                    <div className="btn-content">
-                      <span className="btn-platform-name">GitHub</span>
-                      <span className="btn-helper-text">OAuth</span>
+                  {availableOAuthApps.github && (
+                    <button className="btn btn-platform btn-github" onClick={handleConnectOAuth}>
+                      <PlatformIcon platform="github" size={20} />
+                      <div className="btn-content">
+                        <span className="btn-platform-name">GitHub</span>
+                        <span className="btn-helper-text">OAuth</span>
+                      </div>
+                    </button>
+                  )}
+                  {availableOAuthApps.gitlab && (
+                    <button className="btn btn-platform btn-gitlab" onClick={handleShowGitlabOAuth}>
+                      <PlatformIcon platform="gitlab" size={20} />
+                      <div className="btn-content">
+                        <span className="btn-platform-name">GitLab</span>
+                        <span className="btn-helper-text">OAuth</span>
+                      </div>
+                    </button>
+                  )}
+                  {availableOAuthApps.gitea && (
+                    <button className="btn btn-platform btn-gitea" onClick={handleShowGiteaOAuth}>
+                      <PlatformIcon platform="gitea" size={20} />
+                      <div className="btn-content">
+                        <span className="btn-platform-name">Gitea</span>
+                        <span className="btn-helper-text">OAuth</span>
+                      </div>
+                    </button>
+                  )}
+                  {!availableOAuthApps.github && !availableOAuthApps.gitlab && !availableOAuthApps.gitea && (
+                    <div className="no-oauth-message">
+                      <p>No OAuth applications configured. Please contact your administrator to set up OAuth apps, or use Personal Access Token below.</p>
                     </div>
-                  </button>
-                  <button className="btn btn-platform btn-gitlab" onClick={handleShowGitlabOAuth}>
-                    <PlatformIcon platform="gitlab" size={20} />
-                    <div className="btn-content">
-                      <span className="btn-platform-name">GitLab</span>
-                      <span className="btn-helper-text">OAuth</span>
-                    </div>
-                  </button>
-                  <button className="btn btn-platform btn-gitea" onClick={handleShowGiteaOAuth}>
-                    <PlatformIcon platform="gitea" size={20} />
-                    <div className="btn-content">
-                      <span className="btn-platform-name">Gitea</span>
-                      <span className="btn-helper-text">OAuth</span>
-                    </div>
-                  </button>
+                  )}
                 </>
               ) : (
                 <>

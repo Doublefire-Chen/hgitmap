@@ -323,6 +323,24 @@
   cursor: not-allowed;
 }
 
+.btn-platform .btn-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-platform .btn-platform-name {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.btn-platform .btn-helper-text {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 .btn-platform .platform-name-text {
   font-weight: 500;
   font-size: 0.875rem;
@@ -331,6 +349,22 @@
 .btn-platform .platform-auth-method {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+.no-oauth-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.no-oauth-message p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 /* PAT Form */
