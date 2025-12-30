@@ -293,7 +293,9 @@ pub async fn get_user_contributions(
 
     // Find user by username (case-insensitive)
     let user_model = user::Entity::find()
-        .filter(user::Column::Username.eq(&username))
+        .filter(
+            Expr::expr(Func::lower(Expr::col(user::Column::Username))).eq(username.to_lowercase()),
+        )
         .one(db.as_ref())
         .await
         .map_err(|e| {
