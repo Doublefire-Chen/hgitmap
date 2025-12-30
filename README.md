@@ -7,6 +7,10 @@ A unified contribution heatmap aggregator that integrates your contributions fro
 ![React](https://img.shields.io/badge/react-18+-blue.svg)
 ![PostgreSQL](https://img.shields.io/badge/postgresql-14+-blue.svg)
 
+## Demo
+
+Check out the live demo: [https://hgitmap.aka.cy/Doublefire.Chen](https://hgitmap.aka.cy/Doublefire.Chen)
+
 ## Features
 
 - **Multi-Platform Support** - GitHub, GitLab, Gitea
