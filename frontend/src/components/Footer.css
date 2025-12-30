@@ -1,0 +1,58 @@
+.app-footer {
+    padding: 1.5rem 0;
+    margin-top: auto;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+}
+
+.footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.footer-separator {
+    color: var(--text-tertiary);
+}
+
+.footer-version-link {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer-version-link:hover {
+    color: var(--primary-color);
+}
+
+.footer-text {
+    color: var(--text-secondary);
+}
+
+.footer-link {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+    color: var(--primary-color);
+}
+
+.footer-icon {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.footer-repo-name {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
