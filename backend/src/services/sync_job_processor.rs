@@ -522,18 +522,119 @@ impl SyncJobProcessor {
     async fn sync_profile(
         &self,
         account: &git_platform_account::Model,
-        _access_token: &str,
+        access_token: &str,
     ) -> Result<(), anyhow::Error> {
         log::info!(
             "👤 [SyncJob] Syncing profile data for {}",
             account.platform_username
         );
 
-        // Profile sync would be platform-specific
-        // For now, we'll skip it in background jobs as it's less critical
-        // The profile can still be synced via the direct endpoint
+        let platform_config = match account.platform_type {
+            git_platform_account::GitPlatform::GitHub => PlatformConfig::github(),
+            git_platform_account::GitPlatform::Gitea => {
+                let url = account
+                    .platform_url
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("Gitea URL not found"))?;
+                PlatformConfig::gitea_custom(url)
+            }
+            git_platform_account::GitPlatform::GitLab => {
+                let url = account
+                    .platform_url
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("GitLab URL not found"))?;
+                PlatformConfig::gitlab_custom(url)
+            }
+        };
 
-        log::warn!("👤 [SyncJob] Profile sync not yet implemented in background jobs");
+        // Fetch profile data based on platform type
+        let profile_data = match account.platform_type {
+            git_platform_account::GitPlatform::GitHub => {
+                let client = GitHubClient::new();
+                client
+                    .fetch_user_profile(&platform_config, &account.platform_username, access_token)
+                    .await?
+            }
+            git_platform_account::GitPlatform::Gitea => {
+                let client = GiteaClient::new();
+                client
+                    .fetch_user_profile(&platform_config, access_token)
+                    .await?
+            }
+            git_platform_account::GitPlatform::GitLab => {
+                let client = GitLabClient::new();
+                client
+                    .fetch_user_profile(&platform_config, access_token)
+                    .await?
+            }
+        };
+
+        // Update account with new profile data
+        let mut active_account: git_platform_account::ActiveModel = account.clone().into();
+
+        if let Some(avatar) = profile_data.get("avatar_url").and_then(|v| v.as_str()) {
+            active_account.avatar_url = Set(Some(avatar.to_string()));
+        }
+
+        if let Some(name) = profile_data.get("name").and_then(|v| v.as_str()) {
+            active_account.display_name = Set(Some(name.to_string()));
+        }
+
+        if let Some(bio) = profile_data.get("bio").and_then(|v| v.as_str()) {
+            active_account.bio = Set(Some(bio.to_string()));
+        }
+
+        if let Some(location) = profile_data.get("location").and_then(|v| v.as_str()) {
+            active_account.location = Set(Some(location.to_string()));
+        }
+
+        if let Some(company) = profile_data.get("company").and_then(|v| v.as_str()) {
+            active_account.company = Set(Some(company.to_string()));
+        }
+
+        // Platform-specific fields
+        match account.platform_type {
+            git_platform_account::GitPlatform::GitHub => {
+                if let Some(url) = profile_data.get("html_url").and_then(|v| v.as_str()) {
+                    active_account.profile_url = Set(Some(url.to_string()));
+                }
+                if let Some(followers) = profile_data.get("followers").and_then(|v| v.as_i64()) {
+                    active_account.followers_count = Set(Some(followers as i32));
+                }
+                if let Some(following) = profile_data.get("following").and_then(|v| v.as_i64()) {
+                    active_account.following_count = Set(Some(following as i32));
+                }
+            }
+            git_platform_account::GitPlatform::Gitea => {
+                if let Some(url) = profile_data.get("html_url").and_then(|v| v.as_str()) {
+                    active_account.profile_url = Set(Some(url.to_string()));
+                }
+                if let Some(followers) =
+                    profile_data.get("followers_count").and_then(|v| v.as_i64())
+                {
+                    active_account.followers_count = Set(Some(followers as i32));
+                }
+                if let Some(following) =
+                    profile_data.get("following_count").and_then(|v| v.as_i64())
+                {
+                    active_account.following_count = Set(Some(following as i32));
+                }
+            }
+            git_platform_account::GitPlatform::GitLab => {
+                if let Some(url) = profile_data.get("web_url").and_then(|v| v.as_str()) {
+                    active_account.profile_url = Set(Some(url.to_string()));
+                }
+                // GitLab doesn't provide followers/following in user API
+            }
+        }
+
+        active_account.updated_at = Set(Utc::now());
+        active_account.update(&self.db).await?;
+
+        log::info!(
+            "👤 [SyncJob] Profile synced successfully for {}",
+            account.platform_username
+        );
 
         Ok(())
     }
