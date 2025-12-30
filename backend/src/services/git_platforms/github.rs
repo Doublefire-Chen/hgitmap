@@ -1,4 +1,7 @@
-use super::{Activity, ActivityType, Contribution, ContributionType, GitPlatform, PlatformConfig, Repository, UserInfo};
+use super::{
+    Activity, ActivityType, Contribution, ContributionType, GitPlatform, PlatformConfig,
+    Repository, UserInfo,
+};
 use crate::utils::http_client::create_http_client;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -26,7 +29,10 @@ impl GitHubClient {
         log::info!("🔒 Revoking GitHub OAuth token");
 
         let response = client
-            .delete(&format!("https://api.github.com/applications/{}/token", client_id))
+            .delete(&format!(
+                "https://api.github.com/applications/{}/token",
+                client_id
+            ))
             .basic_auth(client_id, Some(client_secret))
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
@@ -49,7 +55,11 @@ impl GitHubClient {
             Ok(())
         } else {
             let error_text = response.text().await.unwrap_or_default();
-            log::warn!("⚠️  Failed to revoke GitHub token: status {} - {}", status, error_text);
+            log::warn!(
+                "⚠️  Failed to revoke GitHub token: status {} - {}",
+                status,
+                error_text
+            );
             // Don't fail the disconnect if revocation fails - just log the warning
             Ok(())
         }
@@ -182,7 +192,8 @@ impl GitHubClient {
         let mut activities = Vec::new();
 
         for repo in repos {
-            let created_at_str = repo.get("createdAt")
+            let created_at_str = repo
+                .get("createdAt")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("Missing createdAt"))?;
 
@@ -195,24 +206,29 @@ impl GitHubClient {
                 continue;
             }
 
-            let name_with_owner = repo.get("nameWithOwner")
+            let name_with_owner = repo
+                .get("nameWithOwner")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("Missing nameWithOwner"))?;
 
-            let description = repo.get("description")
+            let description = repo
+                .get("description")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
-            let is_private = repo.get("isPrivate")
+            let is_private = repo
+                .get("isPrivate")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
 
-            let primary_language = repo.get("primaryLanguage")
+            let primary_language = repo
+                .get("primaryLanguage")
                 .and_then(|l| l.get("name"))
                 .and_then(|n| n.as_str())
                 .map(|s| s.to_string());
 
-            let url = repo.get("url")
+            let url = repo
+                .get("url")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
@@ -234,7 +250,10 @@ impl GitHubClient {
             });
         }
 
-        log::info!("📦 Fetched {} repository creation activities from GraphQL", activities.len());
+        log::info!(
+            "📦 Fetched {} repository creation activities from GraphQL",
+            activities.len()
+        );
 
         Ok(activities)
     }
@@ -259,7 +278,10 @@ impl GitHubClient {
             .await?;
 
         if !response.status().is_success() {
-            return Err(anyhow!("Failed to fetch user organizations: status {}", response.status()));
+            return Err(anyhow!(
+                "Failed to fetch user organizations: status {}",
+                response.status()
+            ));
         }
 
         let orgs: Vec<serde_json::Value> = response.json().await?;
@@ -275,7 +297,11 @@ impl GitHubClient {
             }
         }
 
-        log::info!("🏢 Fetched {} public organizations for user {}", organizations.len(), username);
+        log::info!(
+            "🏢 Fetched {} public organizations for user {}",
+            organizations.len(),
+            username
+        );
 
         Ok(organizations)
     }
@@ -295,19 +321,32 @@ impl GitHubClient {
         let mut page = 1;
         let per_page = 100;
 
-        log::info!("🔍 Searching for earliest activity in org {} for user {}", org_login, username);
+        log::info!(
+            "🔍 Searching for earliest activity in org {} for user {}",
+            org_login,
+            username
+        );
 
         while page <= 3 {
             let response = client
-                .get(&format!("{}/users/{}/events/public", config.api_base_url, username))
+                .get(&format!(
+                    "{}/users/{}/events/public",
+                    config.api_base_url, username
+                ))
                 .header("User-Agent", "hgitmap/0.1.0")
                 .header("Accept", "application/vnd.github+json")
-                .query(&[("per_page", &per_page.to_string()), ("page", &page.to_string())])
+                .query(&[
+                    ("per_page", &per_page.to_string()),
+                    ("page", &page.to_string()),
+                ])
                 .send()
                 .await?;
 
             if !response.status().is_success() {
-                log::warn!("Failed to fetch events for org date detection: status {}", response.status());
+                log::warn!(
+                    "Failed to fetch events for org date detection: status {}",
+                    response.status()
+                );
                 break;
             }
 
@@ -384,12 +423,18 @@ impl GitHubClient {
     ) -> Result<Option<chrono::NaiveDate>> {
         let client = create_http_client();
 
-        log::info!("🕷️  Scraping org join date for {} in {}", username, org_login);
+        log::info!(
+            "🕷️  Scraping org join date for {} in {}",
+            username,
+            org_login
+        );
 
         // GitHub loads the activity timeline as a fragment
         // Fetch the fragment URL directly instead of the main profile page
-        let url = format!("https://github.com/{}?action=show&controller=profiles&tab=contributions&user_id={}",
-            username, username);
+        let url = format!(
+            "https://github.com/{}?action=show&controller=profiles&tab=contributions&user_id={}",
+            username, username
+        );
 
         log::info!("📡 Fetching timeline fragment from: {}", url);
 
@@ -409,7 +454,10 @@ impl GitHubClient {
             .await?;
 
         if !response.status().is_success() {
-            return Err(anyhow!("Failed to fetch GitHub timeline fragment: status {}", response.status()));
+            return Err(anyhow!(
+                "Failed to fetch GitHub timeline fragment: status {}",
+                response.status()
+            ));
         }
 
         let html = response.text().await?;
@@ -437,7 +485,11 @@ impl GitHubClient {
             matches_found += 1;
             let absolute_link_idx = search_pos + link_idx;
 
-            log::info!("📌 Found link #{} at position {}", matches_found, absolute_link_idx);
+            log::info!(
+                "📌 Found link #{} at position {}",
+                matches_found,
+                absolute_link_idx
+            );
 
             // Look backwards from the link to see if "Joined the" appears nearby (within 100 chars)
             let search_start = absolute_link_idx.saturating_sub(100);
@@ -487,13 +539,17 @@ impl GitHubClient {
                 if let Some(time_start) = before_section.rfind("<time datetime=\"") {
                     let datetime_start = time_start + 16;
                     if let Some(datetime_end) = before_section[datetime_start..].find("\"") {
-                        let datetime_str = &before_section[datetime_start..datetime_start + datetime_end];
+                        let datetime_str =
+                            &before_section[datetime_start..datetime_start + datetime_end];
 
-                        if let Ok(parsed_date) = chrono::DateTime::parse_from_rfc3339(datetime_str) {
+                        if let Ok(parsed_date) = chrono::DateTime::parse_from_rfc3339(datetime_str)
+                        {
                             let join_date = parsed_date.naive_utc().date();
                             log::info!("✅ Scraped org join date: {}", join_date);
                             return Ok(Some(join_date));
-                        } else if let Ok(naive_date) = chrono::NaiveDate::parse_from_str(datetime_str, "%Y-%m-%d") {
+                        } else if let Ok(naive_date) =
+                            chrono::NaiveDate::parse_from_str(datetime_str, "%Y-%m-%d")
+                        {
                             log::info!("✅ Scraped org join date: {}", naive_date);
                             return Ok(Some(naive_date));
                         }
@@ -506,7 +562,10 @@ impl GitHubClient {
             search_pos = absolute_link_idx + 1;
         }
 
-        log::warn!("⚠️  Could not find org join date in scraped HTML (found {} link occurrences)", matches_found);
+        log::warn!(
+            "⚠️  Could not find org join date in scraped HTML (found {} link occurrences)",
+            matches_found
+        );
         Ok(None)
     }
 
@@ -526,9 +585,18 @@ impl GitHubClient {
 
         // Map month abbreviations to numbers
         let month = match month_str {
-            "Jan" => 1, "Feb" => 2, "Mar" => 3, "Apr" => 4,
-            "May" => 5, "Jun" => 6, "Jul" => 7, "Aug" => 8,
-            "Sep" => 9, "Oct" => 10, "Nov" => 11, "Dec" => 12,
+            "Jan" => 1,
+            "Feb" => 2,
+            "Mar" => 3,
+            "Apr" => 4,
+            "May" => 5,
+            "Jun" => 6,
+            "Jul" => 7,
+            "Aug" => 8,
+            "Sep" => 9,
+            "Oct" => 10,
+            "Nov" => 11,
+            "Dec" => 12,
             _ => return None,
         };
 
@@ -589,7 +657,10 @@ impl GitHubClient {
             }
         "#;
 
-        let pr_search_query = format!("author:{} type:pr created:{}..{}", username, from_str, to_str);
+        let pr_search_query = format!(
+            "author:{} type:pr created:{}..{}",
+            username, from_str, to_str
+        );
 
         let pr_response = client
             .post(&format!("{}/graphql", config.api_base_url))
@@ -607,13 +678,21 @@ impl GitHubClient {
         if pr_response.status().is_success() {
             let pr_data: serde_json::Value = pr_response.json().await?;
 
-            if let Some(nodes) = pr_data.get("data")
+            if let Some(nodes) = pr_data
+                .get("data")
                 .and_then(|d| d.get("search"))
                 .and_then(|s| s.get("nodes"))
                 .and_then(|n| n.as_array())
             {
                 for node in nodes {
-                    if let (Some(title), Some(number), Some(state), Some(created_at), Some(url), Some(repo)) = (
+                    if let (
+                        Some(title),
+                        Some(number),
+                        Some(state),
+                        Some(created_at),
+                        Some(url),
+                        Some(repo),
+                    ) = (
                         node.get("title").and_then(|v| v.as_str()),
                         node.get("number").and_then(|v| v.as_i64()),
                         node.get("state").and_then(|v| v.as_str()),
@@ -625,18 +704,22 @@ impl GitHubClient {
                             .map_err(|e| anyhow!("Failed to parse date: {}", e))?;
                         let date = created_at_parsed.naive_utc().date();
 
-                        let repo_name = repo.get("nameWithOwner")
+                        let repo_name = repo
+                            .get("nameWithOwner")
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown");
-                        let is_private = repo.get("isPrivate")
+                        let is_private = repo
+                            .get("isPrivate")
                             .and_then(|v| v.as_bool())
                             .unwrap_or(false);
 
                         // Extract body (description) and comment count
-                        let body = node.get("body")
+                        let body = node
+                            .get("body")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
-                        let comment_count = node.get("comments")
+                        let comment_count = node
+                            .get("comments")
                             .and_then(|c| c.get("totalCount"))
                             .and_then(|v| v.as_i64())
                             .unwrap_or(0);
@@ -653,7 +736,10 @@ impl GitHubClient {
                         // Only include body if it exists and is not empty
                         if let Some(body_text) = body {
                             if !body_text.trim().is_empty() {
-                                metadata.as_object_mut().unwrap().insert("body".to_string(), json!(body_text));
+                                metadata
+                                    .as_object_mut()
+                                    .unwrap()
+                                    .insert("body".to_string(), json!(body_text));
                             }
                         }
 
@@ -699,7 +785,10 @@ impl GitHubClient {
             }
         "#;
 
-        let issue_search_query = format!("author:{} type:issue created:{}..{}", username, from_str, to_str);
+        let issue_search_query = format!(
+            "author:{} type:issue created:{}..{}",
+            username, from_str, to_str
+        );
 
         let issue_response = client
             .post(&format!("{}/graphql", config.api_base_url))
@@ -717,13 +806,21 @@ impl GitHubClient {
         if issue_response.status().is_success() {
             let issue_data: serde_json::Value = issue_response.json().await?;
 
-            if let Some(nodes) = issue_data.get("data")
+            if let Some(nodes) = issue_data
+                .get("data")
                 .and_then(|d| d.get("search"))
                 .and_then(|s| s.get("nodes"))
                 .and_then(|n| n.as_array())
             {
                 for node in nodes {
-                    if let (Some(title), Some(number), Some(state), Some(created_at), Some(url), Some(repo)) = (
+                    if let (
+                        Some(title),
+                        Some(number),
+                        Some(state),
+                        Some(created_at),
+                        Some(url),
+                        Some(repo),
+                    ) = (
                         node.get("title").and_then(|v| v.as_str()),
                         node.get("number").and_then(|v| v.as_i64()),
                         node.get("state").and_then(|v| v.as_str()),
@@ -735,18 +832,22 @@ impl GitHubClient {
                             .map_err(|e| anyhow!("Failed to parse date: {}", e))?;
                         let date = created_at_parsed.naive_utc().date();
 
-                        let repo_name = repo.get("nameWithOwner")
+                        let repo_name = repo
+                            .get("nameWithOwner")
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown");
-                        let is_private = repo.get("isPrivate")
+                        let is_private = repo
+                            .get("isPrivate")
                             .and_then(|v| v.as_bool())
                             .unwrap_or(false);
 
                         // Extract body (description) and comment count
-                        let body = node.get("body")
+                        let body = node
+                            .get("body")
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
-                        let comment_count = node.get("comments")
+                        let comment_count = node
+                            .get("comments")
                             .and_then(|c| c.get("totalCount"))
                             .and_then(|v| v.as_i64())
                             .unwrap_or(0);
@@ -763,7 +864,10 @@ impl GitHubClient {
                         // Only include body if it exists and is not empty
                         if let Some(body_text) = body {
                             if !body_text.trim().is_empty() {
-                                metadata.as_object_mut().unwrap().insert("body".to_string(), json!(body_text));
+                                metadata
+                                    .as_object_mut()
+                                    .unwrap()
+                                    .insert("body".to_string(), json!(body_text));
                             }
                         }
 
@@ -784,7 +888,10 @@ impl GitHubClient {
             }
         }
 
-        log::info!("🔍 Fetched {} PR/issue activities from GraphQL search", all_activities.len());
+        log::info!(
+            "🔍 Fetched {} PR/issue activities from GraphQL search",
+            all_activities.len()
+        );
 
         Ok(all_activities)
     }
@@ -801,7 +908,10 @@ impl GitHubClient {
         let client = create_http_client();
         let mut date_repos: HashMap<chrono::NaiveDate, Vec<String>> = HashMap::new();
 
-        log::info!("🔍 Searching for commits on {} dates with missing repository info", dates.len());
+        log::info!(
+            "🔍 Searching for commits on {} dates with missing repository info",
+            dates.len()
+        );
 
         // Group consecutive dates to minimize API calls
         let mut date_ranges: Vec<(chrono::NaiveDate, chrono::NaiveDate)> = Vec::new();
@@ -820,18 +930,53 @@ impl GitHubClient {
             date_ranges.push((*date, *date));
         }
 
-        log::info!("📅 Grouped {} dates into {} ranges for search", dates.len(), date_ranges.len());
+        log::info!(
+            "📅 Grouped {} dates into {} ranges for search",
+            dates.len(),
+            date_ranges.len()
+        );
+
+        // Check rate limit before starting
+        match self.check_rate_limit(config, token).await {
+            Ok((remaining, reset_at)) => {
+                if remaining < 5 {
+                    log::warn!(
+                        "⚠️  GitHub API rate limit low: {} requests remaining (resets at {})",
+                        remaining,
+                        reset_at
+                    );
+                    if remaining == 0 {
+                        log::error!(
+                            "❌ GitHub API rate limit exhausted. Search API fallback skipped."
+                        );
+                        log::info!("💡 Tip: Wait until {} or use GraphQL API which has a separate rate limit", reset_at);
+                        return Ok(date_repos); // Return empty results instead of failing
+                    }
+                }
+            }
+            Err(e) => {
+                log::warn!("⚠️  Failed to check rate limit: {}", e);
+            }
+        }
 
         // Search each date range using REST API
-        for (from_date, to_date) in date_ranges {
+        for (range_idx, (from_date, to_date)) in date_ranges.iter().enumerate() {
             let from_str = from_date.format("%Y-%m-%d").to_string();
             let to_str = to_date.format("%Y-%m-%d").to_string();
 
             // GitHub REST API search for commits
             // https://docs.github.com/en/rest/search/search#search-commits
-            let search_query = format!("author:{} committer-date:{}..{}", username, from_str, to_str);
+            let search_query = format!(
+                "author:{} committer-date:{}..{}",
+                username, from_str, to_str
+            );
 
-            log::debug!("🔎 REST API Search: {}", search_query);
+            log::debug!(
+                "🔎 REST API Search ({}/{}): {}",
+                range_idx + 1,
+                date_ranges.len(),
+                search_query
+            );
 
             let mut page = 1;
             let per_page = 100;
@@ -845,26 +990,93 @@ impl GitHubClient {
                     page
                 );
 
-                let response = client
-                    .get(&url)
-                    .header("Authorization", format!("Bearer {}", token))
-                    .header("User-Agent", "hgitmap/0.1.0")
-                    .header("Accept", "application/vnd.github.cloak-preview+json") // Required for commit search
-                    .send()
-                    .await?;
+                // Retry logic for rate limit handling
+                let mut retry_count = 0;
+                let max_retries = 3;
+                let mut backoff_delay = 1000; // Start with 1 second
 
-                if !response.status().is_success() {
-                    let status = response.status();
-                    let error_body = response.text().await.unwrap_or_else(|_| "Unable to read error".to_string());
-                    log::warn!("REST API search failed: status {} - Error: {}", status, error_body);
-                    break;
+                let mut response_opt: Option<reqwest::Response> = None;
+
+                while retry_count <= max_retries {
+                    let attempt = client
+                        .get(&url)
+                        .header("Authorization", format!("Bearer {}", token))
+                        .header("User-Agent", "hgitmap/0.1.0")
+                        .header("Accept", "application/vnd.github.cloak-preview+json") // Required for commit search
+                        .send()
+                        .await?;
+
+                    let status = attempt.status();
+
+                    // Check for rate limit error (403)
+                    if status.as_u16() == 403 {
+                        let error_body = attempt
+                            .text()
+                            .await
+                            .unwrap_or_else(|_| "Unable to read error".to_string());
+
+                        // Check if it's a rate limit error
+                        if error_body.contains("rate limit exceeded")
+                            || error_body.contains("API rate limit")
+                        {
+                            retry_count += 1;
+
+                            if retry_count <= max_retries {
+                                log::warn!("⚠️  Rate limit hit (attempt {}/{}). Waiting {} ms before retry...", 
+                                    retry_count, max_retries, backoff_delay);
+                                tokio::time::sleep(tokio::time::Duration::from_millis(
+                                    backoff_delay,
+                                ))
+                                .await;
+                                backoff_delay *= 2; // Exponential backoff
+                                continue;
+                            } else {
+                                log::error!(
+                                    "❌ Rate limit exceeded after {} retries. Stopping search.",
+                                    max_retries
+                                );
+                                log::warn!(
+                                    "REST API search failed: status {} - Error: {}",
+                                    status,
+                                    error_body
+                                );
+                                return Ok(date_repos); // Return partial results
+                            }
+                        } else {
+                            log::warn!(
+                                "REST API search failed: status {} - Error: {}",
+                                status,
+                                error_body
+                            );
+                            break; // Exit retry loop with no response
+                        }
+                    } else if !status.is_success() {
+                        let error_body = attempt
+                            .text()
+                            .await
+                            .unwrap_or_else(|_| "Unable to read error".to_string());
+                        log::warn!(
+                            "REST API search failed: status {} - Error: {}",
+                            status,
+                            error_body
+                        );
+                        break; // Exit retry loop with no response
+                    } else {
+                        // Success - save the response and exit retry loop
+                        response_opt = Some(attempt);
+                        break;
+                    }
                 }
+
+                // If we didn't get a valid response, skip to next date range
+                let response = match response_opt {
+                    Some(r) => r,
+                    None => break, // Break from page loop, continue to next date range
+                };
 
                 let search_result: serde_json::Value = response.json().await?;
 
-                let items = search_result
-                    .get("items")
-                    .and_then(|v| v.as_array());
+                let items = search_result.get("items").and_then(|v| v.as_array());
 
                 if let Some(commits) = items {
                     if commits.is_empty() {
@@ -872,21 +1084,24 @@ impl GitHubClient {
                     }
 
                     for commit in commits {
-                        if let (Some(commit_obj), Some(repo)) = (
-                            commit.get("commit"),
-                            commit.get("repository"),
-                        ) {
+                        if let (Some(commit_obj), Some(repo)) =
+                            (commit.get("commit"), commit.get("repository"))
+                        {
                             // Get commit date
                             if let Some(committer_date_str) = commit_obj
                                 .get("committer")
                                 .and_then(|c| c.get("date"))
                                 .and_then(|d| d.as_str())
                             {
-                                if let Ok(commit_date) = chrono::DateTime::parse_from_rfc3339(committer_date_str) {
+                                if let Ok(commit_date) =
+                                    chrono::DateTime::parse_from_rfc3339(committer_date_str)
+                                {
                                     let date = commit_date.naive_utc().date();
 
                                     // Get repository name
-                                    if let Some(repo_full_name) = repo.get("full_name").and_then(|n| n.as_str()) {
+                                    if let Some(repo_full_name) =
+                                        repo.get("full_name").and_then(|n| n.as_str())
+                                    {
                                         let entry = date_repos.entry(date).or_insert_with(Vec::new);
                                         if !entry.contains(&repo_full_name.to_string()) {
                                             entry.push(repo_full_name.to_string());
@@ -915,17 +1130,62 @@ impl GitHubClient {
                     break;
                 }
 
-                // Be nice to the API - small delay between pages
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                // Be nice to the API - longer delay between pages (increased from 100ms to 500ms)
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             }
 
-            // Be nice to the API - delay between searches
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+            // Be nice to the API - longer delay between searches (increased from 200ms to 1000ms)
+            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
         }
 
-        log::info!("✅ Search found repository names for {} dates", date_repos.len());
+        log::info!(
+            "✅ Search found repository names for {} dates",
+            date_repos.len()
+        );
 
         Ok(date_repos)
+    }
+
+    /// Check GitHub API rate limit status
+    async fn check_rate_limit(
+        &self,
+        config: &PlatformConfig,
+        token: &str,
+    ) -> Result<(i64, String)> {
+        let client = create_http_client();
+
+        let response = client
+            .get(&format!("{}/rate_limit", config.api_base_url))
+            .header("Authorization", format!("Bearer {}", token))
+            .header("User-Agent", "hgitmap/0.1.0")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(anyhow!("Failed to check rate limit: {}", response.status()));
+        }
+
+        let rate_limit_data: serde_json::Value = response.json().await?;
+
+        let remaining = rate_limit_data
+            .get("resources")
+            .and_then(|r| r.get("search"))
+            .and_then(|s| s.get("remaining"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+
+        let reset_timestamp = rate_limit_data
+            .get("resources")
+            .and_then(|r| r.get("search"))
+            .and_then(|s| s.get("reset"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+
+        let reset_at = chrono::DateTime::from_timestamp(reset_timestamp, 0)
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+
+        Ok((remaining, reset_at))
     }
 }
 
@@ -1001,13 +1261,19 @@ impl GitPlatform for GitHubClient {
             .user
             .ok_or_else(|| anyhow!("User not found"))?;
 
-        let calendar = calendar_user_data.contributions_collection.contribution_calendar;
+        let calendar = calendar_user_data
+            .contributions_collection
+            .contribution_calendar;
 
-        log::info!("📊 GitHub contributionCalendar reports {} total contributions", calendar.total_contributions);
+        log::info!(
+            "📊 GitHub contributionCalendar reports {} total contributions",
+            calendar.total_contributions
+        );
 
         // Now fetch repository data with pagination to get complete privacy info
         use std::collections::HashMap;
-        let mut date_privacy_map: HashMap<chrono::NaiveDate, (bool, Vec<(String, i32)>)> = HashMap::new();
+        let mut date_privacy_map: HashMap<chrono::NaiveDate, (bool, Vec<(String, i32)>)> =
+            HashMap::new();
 
         let mut cursor: Option<String> = None;
         let mut page_num = 0;
@@ -1017,7 +1283,8 @@ impl GitPlatform for GitHubClient {
             page_num += 1;
 
             let repo_query = if let Some(ref after_cursor) = cursor {
-                format!(r#"
+                format!(
+                    r#"
                     query($username: String!, $from: DateTime!, $to: DateTime!) {{
                         user(login: $username) {{
                             contributionsCollection(from: $from, to: $to) {{
@@ -1040,7 +1307,9 @@ impl GitPlatform for GitHubClient {
                             }}
                         }}
                     }}
-                "#, after_cursor)
+                "#,
+                    after_cursor
+                )
             } else {
                 r#"
                     query($username: String!, $from: DateTime!, $to: DateTime!) {
@@ -1065,7 +1334,8 @@ impl GitPlatform for GitHubClient {
                             }
                         }
                     }
-                "#.to_string()
+                "#
+                .to_string()
             };
 
             let repo_response = client
@@ -1080,7 +1350,11 @@ impl GitPlatform for GitHubClient {
                 .await?;
 
             if !repo_response.status().is_success() {
-                log::warn!("Failed to fetch repository data page {}: status {}", page_num, repo_response.status());
+                log::warn!(
+                    "Failed to fetch repository data page {}: status {}",
+                    page_num,
+                    repo_response.status()
+                );
                 break;
             }
 
@@ -1101,11 +1375,17 @@ impl GitPlatform for GitHubClient {
                 break;
             };
 
-            let repos_data = user_data.contributions_collection.commit_contributions_by_repository;
+            let repos_data = user_data
+                .contributions_collection
+                .commit_contributions_by_repository;
             let mut has_next_page = false;
             let mut next_cursor: Option<String> = None;
 
-            log::info!("📄 Processing page {} with {} repositories", page_num, repos_data.len());
+            log::info!(
+                "📄 Processing page {} with {} repositories",
+                page_num,
+                repos_data.len()
+            );
 
             for repo_contribution in repos_data {
                 let repo_name = repo_contribution.repository.name_with_owner;
@@ -1138,15 +1418,21 @@ impl GitPlatform for GitHubClient {
 
             // Stop if no more pages or reached max pages
             if !has_next_page || page_num >= max_pages {
-                log::info!("📊 Finished fetching repository data after {} pages", page_num);
+                log::info!(
+                    "📊 Finished fetching repository data after {} pages",
+                    page_num
+                );
                 break;
             }
 
             cursor = next_cursor;
         }
 
-        log::info!("📊 Mapped privacy info for {} days from {} pages of repository data",
-            date_privacy_map.len(), page_num);
+        log::info!(
+            "📊 Mapped privacy info for {} days from {} pages of repository data",
+            date_privacy_map.len(),
+            page_num
+        );
 
         // Convert calendar data to our Contribution format, enriched with privacy info
         let mut contributions = Vec::new();
@@ -1164,11 +1450,13 @@ impl GitPlatform for GitHubClient {
                         // Use the calendar's total count as source of truth, but attribute to repositories
 
                         // Calculate how many commits we tracked via repos
-                        let tracked_commits: i32 = repos_with_counts.iter().map(|(_, count)| count).sum();
+                        let tracked_commits: i32 =
+                            repos_with_counts.iter().map(|(_, count)| count).sum();
 
                         // Calendar count includes commits + PRs + issues + reviews
                         // If calendar count > tracked commits, there are non-commit contributions
-                        let non_commit_contributions = day.contribution_count.saturating_sub(tracked_commits);
+                        let non_commit_contributions =
+                            day.contribution_count.saturating_sub(tracked_commits);
 
                         // Create separate contribution for each repository
                         for (repo_name, commit_count) in repos_with_counts {
@@ -1213,9 +1501,15 @@ impl GitPlatform for GitHubClient {
 
         // Use Search API as fallback for dates without repository info
         if !dates_without_repo.is_empty() {
-            log::info!("🔍 {} dates have contributions but no repository info, using Search API fallback", dates_without_repo.len());
+            log::info!(
+                "🔍 {} dates have contributions but no repository info, using Search API fallback",
+                dates_without_repo.len()
+            );
 
-            match self.search_commits_for_dates(config, username, token, &dates_without_repo).await {
+            match self
+                .search_commits_for_dates(config, username, token, &dates_without_repo)
+                .await
+            {
                 Ok(search_results) => {
                     // Update contributions with search results
                     // For dates with multiple repos found, we can't split the count accurately,
@@ -1233,7 +1527,11 @@ impl GitPlatform for GitHubClient {
                             }
                         }
                     }
-                    log::info!("✅ Search API found repository names for {} / {} dates", updated_count, dates_without_repo.len());
+                    log::info!(
+                        "✅ Search API found repository names for {} / {} dates",
+                        updated_count,
+                        dates_without_repo.len()
+                    );
                 }
                 Err(e) => {
                     log::warn!("⚠️  Search API fallback failed: {}", e);
@@ -1242,12 +1540,23 @@ impl GitPlatform for GitHubClient {
         }
 
         let total: i32 = contributions.iter().map(|c| c.count).sum();
-        let with_repos = contributions.iter().filter(|c| c.repository_name.is_some()).count();
+        let with_repos = contributions
+            .iter()
+            .filter(|c| c.repository_name.is_some())
+            .count();
         let without_repos = contributions.len() - with_repos;
 
-        log::info!("📊 Collected {} contributions across {} days (calendar total: {})",
-            total, contributions.len(), calendar.total_contributions);
-        log::info!("📊 Repository attribution: {} with repos, {} without", with_repos, without_repos);
+        log::info!(
+            "📊 Collected {} contributions across {} days (calendar total: {})",
+            total,
+            contributions.len(),
+            calendar.total_contributions
+        );
+        log::info!(
+            "📊 Repository attribution: {} with repos, {} without",
+            with_repos,
+            without_repos
+        );
 
         Ok(contributions)
     }
@@ -1329,10 +1638,16 @@ impl GitPlatform for GitHubClient {
         // GitHub API only allows fetching up to 300 events
         while page <= 3 {
             let response = client
-                .get(&format!("{}/users/{}/events", config.api_base_url, username))
+                .get(&format!(
+                    "{}/users/{}/events",
+                    config.api_base_url, username
+                ))
                 .header("Authorization", format!("Bearer {}", token))
                 .header("User-Agent", "hgitmap/0.1.0")
-                .query(&[("per_page", &per_page.to_string()), ("page", &page.to_string())])
+                .query(&[
+                    ("per_page", &per_page.to_string()),
+                    ("page", &page.to_string()),
+                ])
                 .send()
                 .await?;
 
@@ -1343,7 +1658,11 @@ impl GitPlatform for GitHubClient {
 
             let events: Vec<GitHubEvent> = response.json().await?;
 
-            log::info!("📥 Fetched {} events from GitHub (page {})", events.len(), page);
+            log::info!(
+                "📥 Fetched {} events from GitHub (page {})",
+                events.len(),
+                page
+            );
 
             if events.is_empty() {
                 break;
@@ -1382,26 +1701,37 @@ impl GitPlatform for GitHubClient {
                 "PushEvent" => {
                     // Debug: log the payload to see what GitHub actually returns
                     if let Some(ref payload) = event.payload {
-                        log::info!("🔍 PushEvent payload for {}: {}", event.repo.name, serde_json::to_string_pretty(payload).unwrap_or_else(|_| "failed to serialize".to_string()));
-                        log::info!("🔍 Payload keys: {:?}", payload.as_object().map(|o| o.keys().collect::<Vec<_>>()));
+                        log::info!(
+                            "🔍 PushEvent payload for {}: {}",
+                            event.repo.name,
+                            serde_json::to_string_pretty(payload)
+                                .unwrap_or_else(|_| "failed to serialize".to_string())
+                        );
+                        log::info!(
+                            "🔍 Payload keys: {:?}",
+                            payload.as_object().map(|o| o.keys().collect::<Vec<_>>())
+                        );
                     } else {
                         log::warn!("⚠️  PushEvent has NO payload for {}", event.repo.name);
                     }
                     // Group commits by date and repository
                     let key = format!("{}_{}", naive_date, event.repo.name);
-                    commit_groups.entry(key).or_insert_with(Vec::new).push(event);
+                    commit_groups
+                        .entry(key)
+                        .or_insert_with(Vec::new)
+                        .push(event);
                 }
                 "CreateEvent" => {
                     if let Some(ref payload) = event.payload {
                         if payload.get("ref_type").and_then(|v| v.as_str()) == Some("repository") {
                             // Fetch repository details to get primary language
-                            let repo_details = self.fetch_repository_details(
-                                config,
-                                token,
-                                &event.repo.name
-                            ).await.ok();
+                            let repo_details = self
+                                .fetch_repository_details(config, token, &event.repo.name)
+                                .await
+                                .ok();
 
-                            let primary_language = repo_details.as_ref()
+                            let primary_language = repo_details
+                                .as_ref()
                                 .and_then(|r| r.get("language"))
                                 .and_then(|l| l.as_str())
                                 .map(|s| s.to_string());
@@ -1415,7 +1745,10 @@ impl GitPlatform for GitHubClient {
                                     "created_at": event.created_at,
                                 }),
                                 repository_name: Some(event.repo.name.clone()),
-                                repository_url: Some(format!("https://github.com/{}", event.repo.name)),
+                                repository_url: Some(format!(
+                                    "https://github.com/{}",
+                                    event.repo.name
+                                )),
                                 is_private: false, // GitHub events API doesn't expose privacy
                                 count: 1,
                                 primary_language,
@@ -1439,7 +1772,10 @@ impl GitPlatform for GitHubClient {
                                     "url": pr.get("html_url"),
                                 }),
                                 repository_name: Some(event.repo.name.clone()),
-                                repository_url: Some(format!("https://github.com/{}", event.repo.name)),
+                                repository_url: Some(format!(
+                                    "https://github.com/{}",
+                                    event.repo.name
+                                )),
                                 is_private: false,
                                 count: 1,
                                 primary_language: None,
@@ -1463,7 +1799,10 @@ impl GitPlatform for GitHubClient {
                                     "url": issue.get("html_url"),
                                 }),
                                 repository_name: Some(event.repo.name.clone()),
-                                repository_url: Some(format!("https://github.com/{}", event.repo.name)),
+                                repository_url: Some(format!(
+                                    "https://github.com/{}",
+                                    event.repo.name
+                                )),
                                 is_private: false,
                                 count: 1,
                                 primary_language: None,
@@ -1527,7 +1866,11 @@ impl GitPlatform for GitHubClient {
             let naive_date = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
                 .unwrap_or_else(|_| chrono::Utc::now().naive_utc().date());
 
-            log::info!("📦 Processing {} commit events for repo: {}", events.len(), repo_name);
+            log::info!(
+                "📦 Processing {} commit events for repo: {}",
+                events.len(),
+                repo_name
+            );
 
             // Since GitHub Events API payload doesn't include commit count in the structure,
             // we'll count the number of PushEvents as an approximation.
@@ -1579,7 +1922,8 @@ impl GitPlatform for GitHubClient {
         to: DateTime<Utc>,
     ) -> Result<Vec<Activity>> {
         // Use the helper method defined in impl GitHubClient
-        GitHubClient::fetch_repository_creation_activities(self, config, username, token, from, to).await
+        GitHubClient::fetch_repository_creation_activities(self, config, username, token, from, to)
+            .await
     }
 }
 
