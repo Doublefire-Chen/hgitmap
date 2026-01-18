@@ -2,13 +2,14 @@ use chrono::{Duration, Utc};
 use sea_orm::*;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration as TokioDuration};
+use uuid::Uuid;
 
-use crate::models::heatmap_generation_setting;
-use crate::services::platform_sync::PlatformSyncService;
+use crate::models::{git_platform_account, heatmap_generation_setting, platform_sync_job};
 use crate::utils::config::Config;
 
 pub struct SyncScheduler {
     db: DatabaseConnection,
+    #[allow(dead_code)]
     config: Config,
     check_interval_seconds: u64,
 }
@@ -57,34 +58,97 @@ impl SyncScheduler {
 
             if should_sync {
                 let user_id = setting.user_id;
-                log::info!("Scheduling sync for user: {}", user_id);
+                log::info!("📅 [SyncScheduler] Scheduling sync for user: {}", user_id);
 
-                // Spawn a new task for this sync to avoid blocking
-                let db_clone = self.db.clone();
-                let config_clone = self.config.clone();
-                tokio::spawn(async move {
-                    let sync_service = PlatformSyncService::new(db_clone.clone(), config_clone);
+                // Get all active platform accounts for this user
+                let accounts = git_platform_account::Entity::find()
+                    .filter(git_platform_account::Column::UserId.eq(user_id))
+                    .filter(git_platform_account::Column::IsActive.eq(true))
+                    .all(&self.db)
+                    .await?;
 
-                    match sync_service.sync_user_data(user_id).await {
-                        Ok(result) => {
-                            log::info!(
-                                "Sync completed for user {}: {} platforms, {} added, {} updated",
-                                user_id,
-                                result.platforms_synced,
-                                result.contributions_added,
-                                result.contributions_updated
-                            );
+                if accounts.is_empty() {
+                    log::debug!(
+                        "📅 [SyncScheduler] No active platform accounts for user {}",
+                        user_id
+                    );
+                    continue;
+                }
 
-                            // Update last_scheduled_generation_at and next_scheduled_generation_at
-                            if let Err(e) = update_sync_timestamps(&db_clone, user_id).await {
-                                log::error!("Failed to update sync timestamps: {}", e);
-                            }
-                        }
-                        Err(e) => {
-                            log::error!("Sync failed for user {}: {}", user_id, e);
-                        }
+                let mut jobs_created = 0;
+
+                // Create a sync job for each active platform account
+                for account in accounts {
+                    // Check if there's already a pending or processing job for this account
+                    let existing_job = platform_sync_job::Entity::find()
+                        .filter(platform_sync_job::Column::PlatformAccountId.eq(account.id))
+                        .filter(
+                            platform_sync_job::Column::Status
+                                .eq(platform_sync_job::SyncJobStatus::Pending)
+                                .or(platform_sync_job::Column::Status
+                                    .eq(platform_sync_job::SyncJobStatus::Processing)),
+                        )
+                        .one(&self.db)
+                        .await?;
+
+                    if existing_job.is_some() {
+                        log::debug!(
+                            "📅 [SyncScheduler] Skipping {} - job already pending/processing",
+                            account.platform_username
+                        );
+                        continue;
                     }
-                });
+
+                    // Create a new sync job
+                    let job = platform_sync_job::ActiveModel {
+                        id: Set(Uuid::new_v4()),
+                        user_id: Set(user_id),
+                        platform_account_id: Set(account.id),
+                        status: Set(platform_sync_job::SyncJobStatus::Pending),
+                        sync_all_years: Set(false), // Scheduled syncs only sync current year
+                        specific_year: Set(None),
+                        sync_contributions: Set(account.sync_contributions),
+                        sync_activities: Set(account.sync_contributions), // Activities sync with contributions
+                        sync_profile: Set(account.sync_profile),
+                        scheduled_at: Set(now),
+                        started_at: Set(None),
+                        completed_at: Set(None),
+                        error_message: Set(None),
+                        retry_count: Set(0),
+                        max_retries: Set(3),
+                        contributions_synced: Set(None),
+                        activities_synced: Set(None),
+                        years_completed: Set(None),
+                        total_years: Set(None),
+                        is_manual: Set(false), // This is an automatic scheduled sync
+                        priority: Set(0),      // Lower priority than manual syncs
+                        created_at: Set(now),
+                    };
+
+                    platform_sync_job::Entity::insert(job)
+                        .exec(&self.db)
+                        .await?;
+
+                    jobs_created += 1;
+                    log::info!(
+                        "📅 [SyncScheduler] Created sync job for {} ({:?})",
+                        account.platform_username,
+                        account.platform_type
+                    );
+                }
+
+                if jobs_created > 0 {
+                    // Update last_scheduled_generation_at now that we've queued the jobs
+                    if let Err(e) = update_sync_timestamps(&self.db, user_id).await {
+                        log::error!("Failed to update sync timestamps: {}", e);
+                    }
+
+                    log::info!(
+                        "📅 [SyncScheduler] Created {} sync jobs for user {}",
+                        jobs_created,
+                        user_id
+                    );
+                }
             }
         }
 

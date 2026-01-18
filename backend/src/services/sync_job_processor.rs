@@ -5,13 +5,14 @@ use tokio::time::{interval, Duration};
 use uuid::Uuid;
 
 use crate::models::{
-    activity, contribution, git_platform_account,
+    activity, contribution, git_platform_account, heatmap_theme,
     platform_sync_job::{self, SyncJobStatus},
 };
 use crate::services::activity_aggregation::ActivityAggregationService;
 use crate::services::git_platforms::{
     GitHubClient, GitLabClient, GitPlatform, GiteaClient, PlatformConfig,
 };
+use crate::services::heatmap_generator::HeatmapGenerator;
 use crate::utils::encryption::decrypt;
 
 pub struct SyncJobProcessor {
@@ -200,6 +201,17 @@ impl SyncJobProcessor {
                     contributions_count,
                     activities_count
                 );
+
+                // Regenerate heatmaps if contributions were synced
+                if contributions_count > 0 {
+                    if let Err(e) = self.regenerate_heatmaps(job.user_id).await {
+                        log::error!(
+                            "Failed to regenerate heatmaps for user {}: {}",
+                            job.user_id,
+                            e
+                        );
+                    }
+                }
             }
             Err(e) => {
                 let error_msg = e.to_string();
@@ -635,6 +647,40 @@ impl SyncJobProcessor {
             "👤 [SyncJob] Profile synced successfully for {}",
             account.platform_username
         );
+
+        Ok(())
+    }
+
+    /// Regenerate all heatmaps for a user's themes
+    async fn regenerate_heatmaps(&self, user_id: Uuid) -> Result<(), anyhow::Error> {
+        let generator = HeatmapGenerator::new(self.db.clone());
+
+        // Get all themes for the user
+        let themes = heatmap_theme::Entity::find()
+            .filter(heatmap_theme::Column::UserId.eq(user_id))
+            .all(&self.db)
+            .await?;
+
+        log::info!(
+            "🎨 [SyncJob] Regenerating {} heatmaps for user {}",
+            themes.len(),
+            user_id
+        );
+
+        for theme in themes {
+            match generator.generate_for_theme(user_id, &theme).await {
+                Ok(_) => {
+                    log::info!("🎨 [SyncJob] Regenerated theme: {}", theme.slug);
+                }
+                Err(e) => {
+                    log::error!(
+                        "🎨 [SyncJob] Failed to regenerate theme {}: {}",
+                        theme.slug,
+                        e
+                    );
+                }
+            }
+        }
 
         Ok(())
     }
