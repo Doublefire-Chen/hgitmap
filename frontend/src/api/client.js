@@ -137,6 +137,13 @@ class ApiClient {
     });
   }
 
+  async updatePlatformToken(platformId, accessToken) {
+    return this.fetchWithAuth(`/platforms/${platformId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+  }
+
   async syncPlatform(platformId, allYears = false, year = null, profileOnly = false) {
     let queryParams = [];
 

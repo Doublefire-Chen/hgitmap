@@ -185,6 +185,10 @@ async fn main() -> std::io::Result<()> {
                         web::delete().to(handlers::platform_accounts::disconnect_platform),
                     )
                     .route(
+                        "/{id}",
+                        web::put().to(handlers::platform_accounts::update_platform_token),
+                    )
+                    .route(
                         "/{id}/sync-preferences",
                         web::put().to(handlers::platform_accounts::update_sync_preferences),
                     )

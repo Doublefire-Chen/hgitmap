@@ -24,6 +24,11 @@ pub struct UpdateSyncPreferencesRequest {
     pub sync_contributions: bool, // When enabled, syncs both contributions and activities
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdatePlatformTokenRequest {
+    pub access_token: String,
+}
+
 #[derive(Debug, Serialize)]
 pub struct PlatformAccountResponse {
     pub id: String,
@@ -494,6 +499,161 @@ pub async fn update_sync_preferences(
         log::error!("Failed to update sync preferences: {}", e);
         actix_web::error::ErrorInternalServerError("Failed to update sync preferences")
     })?;
+
+    let platform_str = match updated_account.platform_type {
+        git_platform_account::GitPlatform::GitHub => "github",
+        git_platform_account::GitPlatform::GitLab => "gitlab",
+        git_platform_account::GitPlatform::Gitea => "gitea",
+    };
+
+    let auth_type_str = match updated_account.auth_type {
+        git_platform_account::AuthType::OAuth => "oauth",
+        git_platform_account::AuthType::PersonalAccessToken => "personal_access_token",
+    };
+
+    Ok(HttpResponse::Ok().json(PlatformAccountResponse {
+        id: updated_account.id.to_string(),
+        platform: platform_str.to_string(),
+        platform_username: updated_account.platform_username,
+        platform_url: updated_account.platform_url,
+        is_active: updated_account.is_active,
+        last_synced_at: updated_account.last_synced_at.map(|dt| dt.to_rfc3339()),
+        created_at: updated_account.created_at.to_rfc3339(),
+        updated_at: updated_account.updated_at.to_rfc3339(),
+        avatar_url: updated_account.avatar_url,
+        display_name: updated_account.display_name,
+        bio: updated_account.bio,
+        profile_url: updated_account.profile_url,
+        location: updated_account.location,
+        company: updated_account.company,
+        followers_count: updated_account.followers_count,
+        following_count: updated_account.following_count,
+        sync_profile: updated_account.sync_profile,
+        sync_contributions: updated_account.sync_contributions,
+        auth_type: auth_type_str.to_string(),
+    }))
+}
+
+/// PUT /api/platforms/:id
+/// Update the access token for a platform account (PAT accounts only)
+pub async fn update_platform_token(
+    db: web::Data<DatabaseConnection>,
+    config: web::Data<Config>,
+    user_claims: web::ReqData<crate::middleware::auth::Claims>,
+    path: web::Path<String>,
+    payload: web::Json<UpdatePlatformTokenRequest>,
+) -> Result<impl Responder, actix_web::Error> {
+    let user_id = Uuid::parse_str(&user_claims.sub)
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid user ID: {}", e)))?;
+
+    let account_id = Uuid::parse_str(&path.into_inner())
+        .map_err(|e| actix_web::error::ErrorBadRequest(format!("Invalid account ID: {}", e)))?;
+
+    // Find the account
+    let account = git_platform_account::Entity::find_by_id(account_id)
+        .one(db.as_ref())
+        .await
+        .map_err(|e| {
+            log::error!("Database error: {}", e);
+            actix_web::error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| actix_web::error::ErrorNotFound("Account not found"))?;
+
+    // Verify ownership
+    if account.user_id != user_id {
+        return Err(actix_web::error::ErrorForbidden("Not authorized"));
+    }
+
+    // Only allow editing PAT accounts - OAuth tokens are managed automatically
+    if account.auth_type != git_platform_account::AuthType::PersonalAccessToken {
+        return Ok(HttpResponse::BadRequest().json(ErrorResponse {
+            error: "Cannot manually edit OAuth account tokens. OAuth tokens are managed automatically through the OAuth flow.".to_string(),
+        }));
+    }
+
+    // Determine platform configuration
+    let platform_config = match account.platform_type {
+        git_platform_account::GitPlatform::GitHub => PlatformConfig::github(),
+        git_platform_account::GitPlatform::Gitea => {
+            let instance_url = account.platform_url.as_ref().ok_or_else(|| {
+                actix_web::error::ErrorInternalServerError("Gitea instance URL not found")
+            })?;
+            PlatformConfig::gitea_custom(instance_url)
+        }
+        git_platform_account::GitPlatform::GitLab => {
+            let instance_url = account.platform_url.as_ref().ok_or_else(|| {
+                actix_web::error::ErrorInternalServerError("GitLab instance URL not found")
+            })?;
+            PlatformConfig::gitlab_custom(instance_url)
+        }
+    };
+
+    // Validate the new token and get user info
+    let user_info = match account.platform_type {
+        git_platform_account::GitPlatform::GitHub => {
+            let client = GitHubClient::new();
+            client
+                .validate_token(&platform_config, &payload.access_token)
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to validate GitHub token: {}", e);
+                    actix_web::error::ErrorUnauthorized(format!("Invalid access token: {}", e))
+                })?
+        }
+        git_platform_account::GitPlatform::Gitea => {
+            let client = GiteaClient::new();
+            client
+                .validate_token(&platform_config, &payload.access_token)
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to validate Gitea token: {}", e);
+                    actix_web::error::ErrorUnauthorized(format!("Invalid access token: {}", e))
+                })?
+        }
+        git_platform_account::GitPlatform::GitLab => {
+            let client = GitLabClient::new();
+            client
+                .validate_token(&platform_config, &payload.access_token)
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to validate GitLab token: {}", e);
+                    actix_web::error::ErrorUnauthorized(format!("Invalid access token: {}", e))
+                })?
+        }
+    };
+
+    // Verify the token belongs to the same username
+    if user_info.username.to_lowercase() != account.platform_username.to_lowercase() {
+        return Ok(HttpResponse::BadRequest().json(ErrorResponse {
+            error: format!(
+                "Token belongs to user '{}', but this account is connected as '{}'. You cannot change the platform username.",
+                user_info.username, account.platform_username
+            ),
+        }));
+    }
+
+    // Encrypt the new access token
+    let encrypted_token = encryption::encrypt(&payload.access_token, &config.encryption_key)
+        .map_err(|e| {
+            log::error!("Failed to encrypt token: {}", e);
+            actix_web::error::ErrorInternalServerError("Encryption failed")
+        })?;
+
+    // Update the account with the new token
+    let mut account_update: git_platform_account::ActiveModel = account.into();
+    account_update.access_token = Set(Some(encrypted_token));
+    account_update.updated_at = Set(chrono::Utc::now());
+
+    let updated_account = account_update.update(db.as_ref()).await.map_err(|e| {
+        log::error!("Failed to update platform token: {}", e);
+        actix_web::error::ErrorInternalServerError("Failed to update token")
+    })?;
+
+    log::info!(
+        "Updated access token for platform account: {} ({})",
+        updated_account.id,
+        updated_account.platform_username
+    );
 
     let platform_str = match updated_account.platform_type {
         git_platform_account::GitPlatform::GitHub => "github",

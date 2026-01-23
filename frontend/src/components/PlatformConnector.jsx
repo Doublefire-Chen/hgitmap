@@ -33,6 +33,12 @@ function PlatformConnector() {
     gitea: false
   });
 
+  // Edit token modal state
+  const [editingPlatform, setEditingPlatform] = useState(null);
+  const [editToken, setEditToken] = useState('');
+  const [editError, setEditError] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
   useEffect(() => {
     loadPlatforms();
     loadAvailableOAuthApps();
@@ -301,6 +307,44 @@ function PlatformConnector() {
     }
   };
 
+  const handleEditClick = (platform) => {
+    // Only allow editing PAT accounts
+    if (platform.auth_type !== 'personal_access_token') {
+      return;
+    }
+    setEditingPlatform(platform);
+    setEditToken('');
+    setEditError('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingPlatform(null);
+    setEditToken('');
+    setEditError('');
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!editToken.trim()) {
+      setEditError('Please enter a new access token');
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      setEditError('');
+      await apiClient.updatePlatformToken(editingPlatform.id, editToken);
+      setEditingPlatform(null);
+      setEditToken('');
+      await loadPlatforms();
+    } catch (err) {
+      setEditError(err.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="platform-connector loading">Loading platforms...</div>;
   }
@@ -342,12 +386,23 @@ function PlatformConnector() {
                     )}
                   </div>
                 </div>
-                <button
-                  className="btn btn-danger btn-sm remove-btn"
-                  onClick={() => handleDisconnect(platform.id)}
-                >
-                  Remove
-                </button>
+                <div className="platform-card-actions">
+                  {platform.auth_type === 'personal_access_token' && (
+                    <button
+                      className="btn btn-secondary btn-sm edit-btn"
+                      onClick={() => handleEditClick(platform)}
+                      title="Update access token"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-danger btn-sm remove-btn"
+                    onClick={() => handleDisconnect(platform.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
 
               <div className="platform-card-body">
@@ -725,6 +780,77 @@ function PlatformConnector() {
           </form>
         )}
       </div>
+
+      {/* Edit Token Modal */}
+      {editingPlatform && (
+        <div className="modal-overlay" onClick={handleEditCancel}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Update Access Token</h3>
+            <p className="modal-description">
+              Update the Personal Access Token for <strong>{editingPlatform.platform_username}</strong> on{' '}
+              <strong>{editingPlatform.platform.charAt(0).toUpperCase() + editingPlatform.platform.slice(1)}</strong>
+              {editingPlatform.platform_url && (
+                <span className="modal-instance-url"> ({editingPlatform.platform_url})</span>
+              )}
+            </p>
+
+            <form onSubmit={handleEditSubmit}>
+              {editError && <div className="error-message">{editError}</div>}
+
+              <div className="modal-form-field">
+                <label htmlFor="edit-token">New Access Token:</label>
+                <input
+                  id="edit-token"
+                  type="password"
+                  value={editToken}
+                  onChange={(e) => setEditToken(e.target.value)}
+                  placeholder={
+                    editingPlatform.platform === 'github' ? 'ghp_xxxxxxxxxxxx' :
+                    editingPlatform.platform === 'gitea' ? 'Your Gitea token' :
+                    editingPlatform.platform === 'gitlab' ? 'glpat-xxxxxxxxxxxx' :
+                    'Token'
+                  }
+                  className="modal-input"
+                  disabled={editLoading}
+                  autoFocus
+                />
+              </div>
+
+              <p className="modal-hint">
+                The new token must belong to the same user ({editingPlatform.platform_username}).
+                <br />
+                {editingPlatform.platform === 'github' && (
+                  <>Required scopes: <code>repo</code>, <code>read:user</code></>
+                )}
+                {editingPlatform.platform === 'gitea' && (
+                  <>Required scopes: <code>read:repository</code>, <code>read:user</code>, <code>read:organization</code></>
+                )}
+                {editingPlatform.platform === 'gitlab' && (
+                  <>Required scopes: <code>read_user</code>, <code>read_api</code>, <code>read_repository</code></>
+                )}
+              </p>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleEditCancel}
+                  disabled={editLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={editLoading}
+                >
+                  {editLoading ? 'Updating...' : 'Update Token'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
