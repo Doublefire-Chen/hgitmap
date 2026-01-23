@@ -1,19 +1,41 @@
-use actix_web::{web, Responder};
-use actix_files::NamedFile;
+use actix_web::{web, HttpResponse};
+use actix_web::http::header::{self, EntityTag, ETag, CacheControl, CacheDirective};
 use sea_orm::*;
 use sea_orm::sea_query::{Expr, Func};
 use std::path::PathBuf;
+use std::time::UNIX_EPOCH;
 use uuid::Uuid;
 
 use crate::models::{generated_heatmap, heatmap_generation_setting, user};
 use crate::services::heatmap_generator::HeatmapGenerator;
 
+/// Generate an ETag from file metadata (modification time + size)
+fn generate_etag(path: &PathBuf) -> Option<String> {
+    let metadata = std::fs::metadata(path).ok()?;
+    let modified = metadata.modified().ok()?;
+    let duration = modified.duration_since(UNIX_EPOCH).ok()?;
+    let size = metadata.len();
+    // Combine modification time (seconds + nanos) and file size for uniqueness
+    Some(format!("{:x}-{:x}-{:x}", duration.as_secs(), duration.subsec_nanos(), size))
+}
+
+/// Get content type string from file extension
+fn get_content_type_str(path: &PathBuf) -> &'static str {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("svg") => "image/svg+xml",
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("webp") => "image/webp",
+        _ => "application/octet-stream",
+    }
+}
+
 /// GET /static/heatmaps/:user_id/:filename
-/// Serve generated heatmap files
+/// Serve generated heatmap files with cache-busting headers
 pub async fn serve_heatmap(
     db: web::Data<DatabaseConnection>,
     path: web::Path<(String, String)>,
-) -> Result<impl Responder, actix_web::Error> {
+) -> Result<HttpResponse, actix_web::Error> {
     let (user_id_str, filename) = path.into_inner();
 
     // Construct file path (using default directory)
@@ -36,22 +58,45 @@ pub async fn serve_heatmap(
         let _ = update_access_count(&db_clone, &file_path_str).await;
     });
 
-    // Serve the file
-    let named_file = NamedFile::open(file_path).map_err(|e| {
-        log::error!("Failed to open file: {}", e);
+    // Read file content
+    let content = std::fs::read(&file_path).map_err(|e| {
+        log::error!("Failed to read file: {}", e);
         actix_web::error::ErrorInternalServerError("Failed to serve file")
     })?;
 
-    Ok(named_file)
+    // Generate ETag from file metadata
+    let etag = generate_etag(&file_path);
+
+    // Build response with cache-busting headers
+    let mut response = HttpResponse::Ok();
+    response.insert_header((header::CONTENT_TYPE, get_content_type_str(&file_path)));
+
+    // Cache-Control: tell caches to revalidate
+    response.insert_header(CacheControl(vec![
+        CacheDirective::NoCache,
+        CacheDirective::MustRevalidate,
+        CacheDirective::MaxAge(0),
+    ]));
+
+    // ETag for conditional requests
+    if let Some(etag_value) = etag {
+        response.insert_header(ETag(EntityTag::new_weak(etag_value)));
+    }
+
+    // Expires header (immediate expiration)
+    response.insert_header((header::EXPIRES, "0"));
+
+    Ok(response.body(content))
 }
 
 /// GET /embed/:username/:theme_slug.{format}
 /// Public endpoint for embedding heatmaps (e.g., in GitHub README)
 /// Generates the heatmap on-demand if it doesn't exist yet
+/// Includes cache-busting headers to ensure GitHub's camo CDN refreshes the image
 pub async fn serve_embed(
     db: web::Data<DatabaseConnection>,
     path: web::Path<(String, String)>,
-) -> Result<impl Responder, actix_web::Error> {
+) -> Result<HttpResponse, actix_web::Error> {
     let (username, theme_file) = path.into_inner();
 
     // Parse theme slug and format from filename
@@ -133,13 +178,39 @@ pub async fn serve_embed(
         generate_heatmap_on_demand(db.as_ref(), &user.id, &theme, &format).await?
     };
 
-    // Serve the file
-    let named_file = NamedFile::open(file_path).map_err(|e| {
-        log::error!("Failed to open file: {}", e);
+    // Read file content
+    let content = std::fs::read(&file_path).map_err(|e| {
+        log::error!("Failed to read file: {}", e);
         actix_web::error::ErrorInternalServerError("Failed to serve file")
     })?;
 
-    Ok(named_file)
+    // Generate ETag from file metadata
+    let etag = generate_etag(&file_path);
+
+    // Build response with cache-busting headers for GitHub's camo CDN
+    let mut response = HttpResponse::Ok();
+    response.insert_header((header::CONTENT_TYPE, get_content_type_str(&file_path)));
+
+    // Cache-Control: tell caches (including GitHub camo) to revalidate
+    response.insert_header(CacheControl(vec![
+        CacheDirective::NoCache,
+        CacheDirective::NoStore,
+        CacheDirective::MustRevalidate,
+        CacheDirective::MaxAge(0),
+    ]));
+
+    // ETag for conditional requests - changes when file is regenerated
+    if let Some(etag_value) = etag {
+        response.insert_header(ETag(EntityTag::new_weak(etag_value)));
+    }
+
+    // Expires header (immediate expiration)
+    response.insert_header((header::EXPIRES, "0"));
+
+    // Pragma for older HTTP/1.0 caches
+    response.insert_header((header::PRAGMA, "no-cache"));
+
+    Ok(response.body(content))
 }
 
 /// Generate a heatmap on-demand and save it to disk and database
